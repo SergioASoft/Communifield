@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
+  const navigate = useNavigate();
 
   const user = {
     name: "Lissa Ramírez",
@@ -10,9 +12,24 @@ const ProfilePage = () => {
     bio: "Jugadora apasionada del fútbol. Me encanta conocer nuevos equipos y canchas.",
     photo: null as string | null,
     initials: "LR",
+    position: "Delantera",
+    level: "Amateur",
     gamesPlayed: 24,
     friendsCount: 12,
     reservations: 8,
+    winRate: 67,
+  };
+
+  const badges = [
+    { icon: "⚽", label: "Goleadora" },
+    { icon: "🏆", label: "Campeona" },
+    { icon: "🤝", label: "Compañera" },
+    { icon: "🔥", label: "Racha x5" },
+  ];
+
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/");
   };
 
   return (
@@ -20,87 +37,78 @@ const ProfilePage = () => {
       <style>{`
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
-        .profile-page {
-          min-height: 100vh;
-          width: 100%;
+        body {
           background-color: #f5f5f5;
-          display: flex;
-          justify-content: center;
-        }
-.profile-container {
-  width: 100%;
-  max-width: 100%;
-  background-color: #ffffff;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0 10% 40px 10%;
- }
-
-        @media (max-width: 480px) {
-          .profile-container { max-width: 100%; }
-          .profile-page { background-color: #ffffff; }
+          font-family: system-ui, sans-serif;
         }
 
-        .profile-header {
+        .profile-page {
           width: 100%;
-          padding-top: 24px;
-          padding-bottom: 8px;
+          min-height: 100vh;
+          background-color: #f5f5f5;
+        }
+
+        .profile-hero {
+          width: 100%;
+          background: linear-gradient(135deg, #00ab00, #65c25d);
+          padding: 40px 5% 80px 5%;
+          position: relative;
         }
 
         .profile-logo {
           font-weight: 700;
           font-size: 20px;
-          color: #1a1a1a;
+          color: #ffffff;
           letter-spacing: -0.3px;
+          margin-bottom: 32px;
+          display: block;
         }
 
         .profile-logo-dot { color: #b2d100; }
 
-        .avatar-section {
+        .hero-content {
           display: flex;
-          flex-direction: column;
           align-items: center;
-          margin-top: 24px;
-          margin-bottom: 24px;
-          width: 100%;
+          gap: 24px;
+          flex-wrap: wrap;
         }
 
         .avatar-wrapper {
           position: relative;
-          margin-bottom: 12px;
+          flex-shrink: 0;
         }
 
         .avatar-fallback {
-          width: 88px;
-          height: 88px;
+          width: 100px;
+          height: 100px;
           border-radius: 50%;
-          background-color: #00ab00;
+          background-color: #ffffff;
           display: flex;
           align-items: center;
           justify-content: center;
+          border: 3px solid #b2d100;
         }
 
         .avatar-initials {
-          color: #ffffff;
-          font-size: 28px;
+          color: #00ab00;
+          font-size: 32px;
           font-weight: 700;
         }
 
         .avatar-img {
-          width: 88px;
-          height: 88px;
+          width: 100px;
+          height: 100px;
           border-radius: 50%;
           object-fit: cover;
+          border: 3px solid #b2d100;
         }
 
         .avatar-edit-btn {
           position: absolute;
           bottom: 2px;
           right: 2px;
-          width: 26px;
-          height: 26px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
           background-color: #b2d100;
           border: 2px solid #ffffff;
@@ -111,29 +119,59 @@ const ProfilePage = () => {
           padding: 0;
         }
 
+        .hero-info { flex: 1; min-width: 200px; }
+
         .user-name {
-          font-size: 22px;
+          font-size: 26px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: #ffffff;
           margin-bottom: 4px;
-          text-align: center;
         }
 
         .user-email {
           font-size: 14px;
-          color: #888888;
-          text-align: center;
+          color: rgba(255,255,255,0.8);
+          margin-bottom: 10px;
+        }
+
+        .user-tags {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .tag {
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .tag-position {
+          background-color: #b2d100;
+          color: #1a1a1a;
+        }
+
+        .tag-level {
+          background-color: rgba(255,255,255,0.2);
+          color: #ffffff;
+          border: 1px solid rgba(255,255,255,0.4);
+        }
+
+        .profile-body {
+          width: 100%;
+          padding: 0 5% 40px 5%;
+          margin-top: -40px;
+          position: relative;
         }
 
         .stats-row {
           display: flex;
-          align-items: center;
-          justify-content: center;
-          background-color: #f9f9f9;
+          background-color: #ffffff;
           border-radius: 16px;
-          padding: 16px 24px;
-          width: 100%;
-          margin-bottom: 24px;
+          padding: 20px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
 
         .stat-card {
@@ -144,30 +182,31 @@ const ProfilePage = () => {
         }
 
         .stat-number {
-          font-size: 22px;
+          font-size: 24px;
           font-weight: 700;
-          color: #1a1a1a;
+          color: #00ab00;
         }
 
         .stat-label {
           font-size: 12px;
           color: #888888;
           margin-top: 2px;
+          text-align: center;
         }
 
         .stat-divider {
           width: 1px;
-          height: 32px;
-          background-color: #e0e0e0;
+          height: 40px;
+          background-color: #eeeeee;
+          align-self: center;
         }
 
-        .info-card {
-          width: 100%;
+        .card {
           background-color: #ffffff;
           border-radius: 16px;
-          border: 1px solid #eeeeee;
           padding: 20px;
-          margin-bottom: 16px;
+          margin-bottom: 20px;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.08);
         }
 
         .card-header {
@@ -179,7 +218,7 @@ const ProfilePage = () => {
 
         .card-title {
           font-size: 16px;
-          font-weight: 600;
+          font-weight: 700;
           color: #1a1a1a;
         }
 
@@ -193,10 +232,61 @@ const ProfilePage = () => {
           padding: 0;
         }
 
-        .field { margin-bottom: 12px; }
+        .win-rate-bar {
+          width: 100%;
+          height: 8px;
+          background-color: #f0f0f0;
+          border-radius: 4px;
+          margin-top: 8px;
+          overflow: hidden;
+        }
+
+        .win-rate-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #00ab00, #b2d100);
+          border-radius: 4px;
+          width: ${user.winRate}%;
+        }
+
+        .win-rate-label {
+          display: flex;
+          justify-content: space-between;
+          font-size: 13px;
+          color: #888888;
+          margin-top: 4px;
+        }
+
+        .badges-grid {
+          display: flex;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .badge-item {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          background-color: #f9f9f9;
+          border-radius: 12px;
+          padding: 12px 16px;
+          flex: 1;
+          min-width: 70px;
+        }
+
+        .badge-icon { font-size: 24px; }
+
+        .badge-label {
+          font-size: 11px;
+          color: #555555;
+          font-weight: 600;
+          text-align: center;
+        }
+
+        .field { margin-bottom: 14px; }
 
         .field-label {
-          font-size: 12px;
+          font-size: 11px;
           color: #888888;
           text-transform: uppercase;
           letter-spacing: 0.5px;
@@ -213,18 +303,21 @@ const ProfilePage = () => {
         .field-input {
           width: 100%;
           padding: 10px 12px;
-          border: 1px solid #e0e0e0;
+          border: 1.5px solid #e0e0e0;
           border-radius: 10px;
           font-size: 15px;
           color: #1a1a1a;
           background-color: #fafafa;
           outline: none;
+          transition: border-color 0.2s;
         }
+
+        .field-input:focus { border-color: #00ab00; }
 
         .field-textarea {
           width: 100%;
           padding: 10px 12px;
-          border: 1px solid #e0e0e0;
+          border: 1.5px solid #e0e0e0;
           border-radius: 10px;
           font-size: 15px;
           color: #1a1a1a;
@@ -232,7 +325,10 @@ const ProfilePage = () => {
           outline: none;
           min-height: 80px;
           resize: vertical;
+          transition: border-color 0.2s;
         }
+
+        .field-textarea:focus { border-color: #00ab00; }
 
         .field-divider {
           height: 1px;
@@ -243,8 +339,8 @@ const ProfilePage = () => {
         .save-btn {
           width: 100%;
           padding: 14px;
-          background-color: #b2d100;
-          color: #1a1a1a;
+          background: linear-gradient(135deg, #00ab00, #65c25d);
+          color: #ffffff;
           border: none;
           border-radius: 12px;
           font-size: 16px;
@@ -258,24 +354,28 @@ const ProfilePage = () => {
           padding: 14px;
           background-color: transparent;
           color: #cc0000;
-          border: 1px solid #ffcccc;
+          border: 1.5px solid #ffcccc;
           border-radius: 12px;
           font-size: 15px;
           font-weight: 600;
           cursor: pointer;
         }
+
+        @media (max-width: 600px) {
+          .profile-hero { padding: 24px 16px 70px 16px; }
+          .profile-body { padding: 0 16px 40px 16px; }
+          .hero-content { flex-direction: column; align-items: flex-start; }
+          .stat-number { font-size: 18px; }
+        }
       `}</style>
 
       <div className="profile-page">
-        <div className="profile-container">
 
-          <div className="profile-header">
-            <span className="profile-logo">
-              CommuniField <span className="profile-logo-dot">•</span>
-            </span>
-          </div>
-
-          <div className="avatar-section">
+        <div className="profile-hero">
+          <span className="profile-logo">
+            CommuniField <span className="profile-logo-dot">•</span>
+          </span>
+          <div className="hero-content">
             <div className="avatar-wrapper">
               {user.photo ? (
                 <img src={user.photo} alt="Foto de perfil" className="avatar-img" />
@@ -291,9 +391,18 @@ const ProfilePage = () => {
                 </svg>
               </button>
             </div>
-            <h1 className="user-name">{user.name}</h1>
-            <p className="user-email">{user.email}</p>
+            <div className="hero-info">
+              <h1 className="user-name">{user.name}</h1>
+              <p className="user-email">{user.email}</p>
+              <div className="user-tags">
+                <span className="tag tag-position">⚽ {user.position}</span>
+                <span className="tag tag-level">🏅 {user.level}</span>
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div className="profile-body">
 
           <div className="stats-row">
             <div className="stat-card">
@@ -310,11 +419,47 @@ const ProfilePage = () => {
               <span className="stat-number">{user.reservations}</span>
               <span className="stat-label">Reservas</span>
             </div>
+            <div className="stat-divider" />
+            <div className="stat-card">
+              <span className="stat-number">{user.winRate}%</span>
+              <span className="stat-label">Victorias</span>
+            </div>
           </div>
 
-          <div className="info-card">
+          <div className="card">
             <div className="card-header">
-              <span className="card-title">Información personal</span>
+              <span className="card-title">🏆 Rendimiento</span>
+            </div>
+            <div style={{ fontSize: "13px", color: "#555", marginBottom: "4px" }}>
+              Tasa de victorias
+            </div>
+            <div className="win-rate-bar">
+              <div className="win-rate-fill" />
+            </div>
+            <div className="win-rate-label">
+              <span>0%</span>
+              <span style={{ color: "#00ab00", fontWeight: 600 }}>{user.winRate}%</span>
+              <span>100%</span>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">🎖️ Logros</span>
+            </div>
+            <div className="badges-grid">
+              {badges.map((b, i) => (
+                <div className="badge-item" key={i}>
+                  <span className="badge-icon">{b.icon}</span>
+                  <span className="badge-label">{b.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">👤 Información personal</span>
               <button className="edit-btn" onClick={() => setIsEditing(!isEditing)}>
                 {isEditing ? "Cancelar" : "Editar"}
               </button>
@@ -326,6 +471,17 @@ const ProfilePage = () => {
                 <input className="field-input" defaultValue={user.phone} placeholder="Tu número de teléfono" />
               ) : (
                 <p className="field-value">{user.phone}</p>
+              )}
+            </div>
+
+            <div className="field-divider" />
+
+            <div className="field">
+              <label className="field-label">Posición</label>
+              {isEditing ? (
+                <input className="field-input" defaultValue={user.position} placeholder="Tu posición" />
+              ) : (
+                <p className="field-value">{user.position}</p>
               )}
             </div>
 
@@ -345,7 +501,9 @@ const ProfilePage = () => {
             )}
           </div>
 
-          <button className="logout-btn">Cerrar sesión</button>
+          <button className="logout-btn" onClick={handleLogout}>
+            Cerrar sesión
+          </button>
 
         </div>
       </div>
