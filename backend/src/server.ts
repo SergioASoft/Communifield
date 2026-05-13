@@ -1,27 +1,14 @@
-import express from "express"
-import cors from "cors"
-import dotenv from "dotenv"
-import userRoutes from "./routes/userRoutes"
-import authRoutes from "./modules/auth.routes"
+import { app } from "./app";
+import { env } from "./config/env";
+import { testDatabaseConnection } from "./config/db";
 
-
-
-dotenv.config()
-
-const app = express()
-
-app.use(cors())
-app.use(express.json())
-app.use("/users", userRoutes)
-app.use("/auth", authRoutes)
-
-
-app.get("/", (req, res) => {
-    res.send("CommuniField API running")
-})
-
-const PORT = process.env.PORT || 3000
-
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
-})
+app.listen(env.port, async () => {
+  console.log(`Servidor corriendo en http://localhost:${env.port}`);
+  try {
+    await testDatabaseConnection();
+    console.log("MySQL conectado correctamente");
+  } catch (error: any) {
+    console.warn("Servidor iniciado, pero MySQL no conectó:", error.message);
+    console.warn("Revisa .env, XAMPP/MySQL y que exista la base de datos communifield");
+  }
+});
