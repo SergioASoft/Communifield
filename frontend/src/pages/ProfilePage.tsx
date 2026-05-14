@@ -29,6 +29,11 @@ const ProfilePage = () => {
           padding: 0;
         }
 
+        html, body, #root {
+          width: 100%;
+          min-height: 100%;
+        }
+
         body {
           background-color: #f5f5f5;
           font-family: system-ui, sans-serif;
@@ -43,22 +48,21 @@ const ProfilePage = () => {
         .profile-hero {
           width: 100%;
           background: linear-gradient(135deg, #00ab00, #65c25d);
-          padding: 32px 20px 90px;
+          padding: clamp(24px, 4vw, 48px) clamp(16px, 5vw, 80px) 110px;
         }
 
         .profile-container {
           width: 100%;
-          max-width: 760px;
+          max-width: 1200px;
           margin: 0 auto;
         }
 
         .profile-logo {
-          font-weight: 800;
-          font-size: 22px;
-          color: #ffffff;
-          letter-spacing: -0.5px;
-          margin-bottom: 32px;
           display: inline-block;
+          color: #ffffff;
+          font-size: clamp(20px, 2vw, 28px);
+          font-weight: 800;
+          margin-bottom: clamp(24px, 4vw, 44px);
         }
 
         .profile-logo-dot {
@@ -66,9 +70,10 @@ const ProfilePage = () => {
         }
 
         .hero-content {
+          width: 100%;
           display: flex;
           align-items: center;
-          gap: 24px;
+          gap: clamp(20px, 4vw, 40px);
         }
 
         .avatar-wrapper {
@@ -78,8 +83,8 @@ const ProfilePage = () => {
 
         .avatar-fallback,
         .avatar-img {
-          width: 108px;
-          height: 108px;
+          width: clamp(96px, 12vw, 150px);
+          height: clamp(96px, 12vw, 150px);
           border-radius: 50%;
           border: 4px solid #b2d100;
         }
@@ -97,16 +102,16 @@ const ProfilePage = () => {
 
         .avatar-initials {
           color: #00ab00;
-          font-size: 34px;
+          font-size: clamp(30px, 5vw, 52px);
           font-weight: 800;
         }
 
         .avatar-edit-btn {
           position: absolute;
-          right: 0;
-          bottom: 0;
-          width: 32px;
-          height: 32px;
+          right: 6px;
+          bottom: 6px;
+          width: 36px;
+          height: 36px;
           border-radius: 50%;
           background-color: #b2d100;
           border: 2px solid #ffffff;
@@ -118,48 +123,57 @@ const ProfilePage = () => {
 
         .hero-info {
           min-width: 0;
+          flex: 1;
         }
 
         .user-name {
-          font-size: clamp(26px, 5vw, 38px);
-          font-weight: 800;
           color: #ffffff;
-          margin-bottom: 6px;
+          font-size: clamp(28px, 5vw, 52px);
+          font-weight: 800;
           line-height: 1.1;
+          margin-bottom: 8px;
+          word-break: break-word;
         }
 
         .user-email {
-          font-size: 15px;
-          color: rgba(255, 255, 255, 0.85);
-          margin-bottom: 14px;
+          color: rgba(255,255,255,0.86);
+          font-size: clamp(14px, 1.6vw, 18px);
+          margin-bottom: 16px;
           word-break: break-word;
         }
 
         .tag-position {
           display: inline-flex;
           align-items: center;
-          padding: 7px 14px;
+          padding: 8px 16px;
           border-radius: 999px;
           background-color: #b2d100;
           color: #1a1a1a;
-          font-size: 13px;
-          font-weight: 700;
+          font-size: clamp(13px, 1.4vw, 15px);
+          font-weight: 800;
         }
 
         .profile-body {
           width: 100%;
-          padding: 0 20px 40px;
-          margin-top: -50px;
+          padding: 0 clamp(16px, 5vw, 80px) 48px;
+          margin-top: -60px;
+        }
+
+        .profile-content {
+          width: 100%;
+          max-width: 1200px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 20px;
         }
 
         .card {
           width: 100%;
-          max-width: 760px;
-          margin: 0 auto 20px;
           background-color: #ffffff;
-          border-radius: 20px;
-          padding: 24px;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+          border-radius: 24px;
+          padding: clamp(20px, 4vw, 36px);
+          box-shadow: 0 8px 24px rgba(0,0,0,0.08);
         }
 
         .card-header {
@@ -167,40 +181,51 @@ const ProfilePage = () => {
           justify-content: space-between;
           align-items: center;
           gap: 16px;
-          margin-bottom: 20px;
+          margin-bottom: 24px;
         }
 
         .card-title {
-          font-size: 18px;
+          font-size: clamp(18px, 2vw, 24px);
           font-weight: 800;
           color: #1a1a1a;
         }
 
         .edit-btn {
-          font-size: 14px;
+          font-size: 15px;
           color: #00ab00;
-          font-weight: 700;
+          font-weight: 800;
           background: none;
           border: none;
           cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .fields-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 20px;
         }
 
         .field {
-          margin-bottom: 16px;
+          width: 100%;
+        }
+
+        .field-full {
+          grid-column: 1 / -1;
         }
 
         .field-label {
-          font-size: 11px;
+          font-size: 12px;
           color: #777777;
           text-transform: uppercase;
           letter-spacing: 0.7px;
           display: block;
-          margin-bottom: 6px;
-          font-weight: 700;
+          margin-bottom: 8px;
+          font-weight: 800;
         }
 
         .field-value {
-          font-size: 15px;
+          font-size: 16px;
           color: #1a1a1a;
           line-height: 1.5;
           word-break: break-word;
@@ -209,32 +234,26 @@ const ProfilePage = () => {
         .field-input,
         .field-textarea {
           width: 100%;
-          padding: 12px 14px;
+          padding: 13px 14px;
           border: 1.5px solid #e0e0e0;
-          border-radius: 12px;
+          border-radius: 14px;
           font-size: 15px;
           color: #1a1a1a;
           background-color: #fafafa;
           outline: none;
           transition: border-color 0.2s, box-shadow 0.2s;
+          font-family: inherit;
         }
 
         .field-input:focus,
         .field-textarea:focus {
           border-color: #00ab00;
-          box-shadow: 0 0 0 3px rgba(0, 171, 0, 0.12);
+          box-shadow: 0 0 0 3px rgba(0,171,0,0.12);
         }
 
         .field-textarea {
-          min-height: 100px;
+          min-height: 120px;
           resize: vertical;
-          font-family: inherit;
-        }
-
-        .field-divider {
-          height: 1px;
-          background-color: #eeeeee;
-          margin: 16px 0;
         }
 
         .save-btn {
@@ -247,57 +266,63 @@ const ProfilePage = () => {
           font-size: 16px;
           font-weight: 800;
           cursor: pointer;
-          margin-top: 8px;
+          margin-top: 24px;
         }
 
         .logout-btn {
           width: 100%;
-          max-width: 760px;
-          display: block;
-          margin: 0 auto;
           padding: 15px;
           background-color: #ffffff;
           color: #cc0000;
           border: 1.5px solid #ffcccc;
           border-radius: 14px;
           font-size: 15px;
-          font-weight: 700;
+          font-weight: 800;
           cursor: pointer;
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+          box-shadow: 0 4px 14px rgba(0,0,0,0.04);
         }
 
-        @media (max-width: 600px) {
-          .profile-hero {
-            padding: 26px 16px 82px;
+        @media (min-width: 1000px) {
+          .profile-content {
+            grid-template-columns: minmax(0, 1fr);
           }
+        }
 
-          .profile-body {
-            padding: 0 16px 32px;
+        @media (max-width: 768px) {
+          .profile-hero {
+            padding: 24px 18px 92px;
           }
 
           .hero-content {
-            flex-direction: column;
             align-items: flex-start;
-            gap: 18px;
           }
 
-          .avatar-fallback,
-          .avatar-img {
-            width: 96px;
-            height: 96px;
+          .fields-grid {
+            grid-template-columns: 1fr;
           }
+        }
 
-          .avatar-initials {
-            font-size: 30px;
-          }
-
-          .card {
-            padding: 20px;
-            border-radius: 18px;
+        @media (max-width: 520px) {
+          .hero-content {
+            flex-direction: column;
           }
 
           .card-header {
             align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .edit-btn {
+            align-self: flex-start;
+          }
+
+          .profile-body {
+            margin-top: -52px;
+            padding-bottom: 32px;
+          }
+
+          .card {
+            border-radius: 20px;
           }
         }
       `}</style>
@@ -337,69 +362,65 @@ const ProfilePage = () => {
         </section>
 
         <section className="profile-body">
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">👤 Información personal</span>
-              <button className="edit-btn" onClick={() => setIsEditing(!isEditing)} type="button">
-                {isEditing ? "Cancelar" : "Editar"}
-              </button>
+          <div className="profile-content">
+            <div className="card">
+              <div className="card-header">
+                <span className="card-title">👤 Información personal</span>
+                <button className="edit-btn" onClick={() => setIsEditing(!isEditing)} type="button">
+                  {isEditing ? "Cancelar" : "Editar"}
+                </button>
+              </div>
+
+              <div className="fields-grid">
+                <div className="field">
+                  <label className="field-label">Nombre</label>
+                  {isEditing ? (
+                    <input className="field-input" defaultValue={user.name} placeholder="Tu nombre" />
+                  ) : (
+                    <p className="field-value">{user.name}</p>
+                  )}
+                </div>
+
+                <div className="field">
+                  <label className="field-label">Correo electrónico</label>
+                  <p className="field-value">{user.email}</p>
+                </div>
+
+                <div className="field">
+                  <label className="field-label">Teléfono</label>
+                  {isEditing ? (
+                    <input className="field-input" defaultValue={user.phone} placeholder="Tu número de teléfono" />
+                  ) : (
+                    <p className="field-value">{user.phone}</p>
+                  )}
+                </div>
+
+                <div className="field">
+                  <label className="field-label">Posición</label>
+                  {isEditing ? (
+                    <input className="field-input" defaultValue={user.position} placeholder="Tu posición" />
+                  ) : (
+                    <p className="field-value">{user.position}</p>
+                  )}
+                </div>
+
+                <div className="field field-full">
+                  <label className="field-label">Biografía</label>
+                  {isEditing ? (
+                    <textarea className="field-textarea" defaultValue={user.bio} placeholder="Cuéntanos sobre ti..." />
+                  ) : (
+                    <p className="field-value">{user.bio}</p>
+                  )}
+                </div>
+              </div>
+
+              {isEditing && <button className="save-btn">Guardar cambios →</button>}
             </div>
 
-            <div className="field">
-              <label className="field-label">Nombre</label>
-              {isEditing ? (
-                <input className="field-input" defaultValue={user.name} placeholder="Tu nombre" />
-              ) : (
-                <p className="field-value">{user.name}</p>
-              )}
-            </div>
-
-            <div className="field-divider" />
-
-            <div className="field">
-              <label className="field-label">Correo electrónico</label>
-              <p className="field-value">{user.email}</p>
-            </div>
-
-            <div className="field-divider" />
-
-            <div className="field">
-              <label className="field-label">Teléfono</label>
-              {isEditing ? (
-                <input className="field-input" defaultValue={user.phone} placeholder="Tu número de teléfono" />
-              ) : (
-                <p className="field-value">{user.phone}</p>
-              )}
-            </div>
-
-            <div className="field-divider" />
-
-            <div className="field">
-              <label className="field-label">Posición</label>
-              {isEditing ? (
-                <input className="field-input" defaultValue={user.position} placeholder="Tu posición" />
-              ) : (
-                <p className="field-value">{user.position}</p>
-              )}
-            </div>
-
-            <div className="field-divider" />
-
-            <div className="field">
-              <label className="field-label">Biografía</label>
-              {isEditing ? (
-                <textarea className="field-textarea" defaultValue={user.bio} placeholder="Cuéntanos sobre ti..." />
-              ) : (
-                <p className="field-value">{user.bio}</p>
-              )}
-            </div>
-
-            {isEditing && <button className="save-btn">Guardar cambios →</button>}
+            <button className="logout-btn" onClick={handleLogout} type="button">
+              Cerrar sesión
+            </button>
           </div>
-
-          <button className="logout-btn" onClick={handleLogout} type="button">
-            Cerrar sesión
-          </button>
         </section>
       </main>
     </>
