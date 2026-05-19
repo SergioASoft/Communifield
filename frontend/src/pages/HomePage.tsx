@@ -44,8 +44,8 @@ export default function HomePage() {
               conoce nuevas personas.
             </p>
             <div className="hero-ctas">
-              <a href="#" className="cta-primary">Reservar ahora</a>
-              <a href="#" className="cta-outline">Ver canchas →</a>
+              <a href="/canchas" className="cta-primary">Reservar ahora</a>
+              <a href="/canchas" className="cta-outline">Ver canchas →</a>
             </div>
           </div>
 

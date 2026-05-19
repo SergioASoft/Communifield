@@ -118,7 +118,7 @@ function Header() {
 
       <div style={s.headerUsuario}>
         <div style={s.perfilCircle}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: PALETTE.green }}>JM</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: PALETTE.green }}>LR</span>
         </div>
 
         <button
@@ -137,21 +137,43 @@ function Header() {
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           <div style={s.menuInfo}>
-            <div style={s.menuAvatar}>JM</div>
+            <div style={s.menuAvatar}>LR</div>
             <div>
-              <p style={s.menuNombre}>Juan Mejia</p>
-              <p style={s.menuEmail}>juan@correo.com</p>
+              <p style={s.menuNombre}>Lissa Ramírez</p>
+              <p style={s.menuEmail}>lissa@communifield.com</p>
             </div>
           </div>
           <hr style={s.menuDivider} />
           {menuItems.map((item: string) => (
-            <button key={item} style={s.menuBtn}
-              onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.background = PALETTE.greenPale; }}
-              onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.background = "transparent"; }}
-            >
-              {item}
-            </button>
-          ))}
+  item === "Mi perfil" ? (
+    <a
+      key={item}
+      href="/perfil"
+      style={{ ...s.menuBtn, textDecoration: "none" }}
+      onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.currentTarget.style.background = PALETTE.greenPale;
+      }}
+      onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
+        e.currentTarget.style.background = "transparent";
+      }}
+    >
+      {item}
+    </a>
+  ) : (
+    <button
+      key={item}
+      style={s.menuBtn}
+      onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => {
+        e.currentTarget.style.background = PALETTE.greenPale;
+      }}
+      onMouseLeave={(e: React.MouseEvent<HTMLButtonElement>) => {
+        e.currentTarget.style.background = "transparent";
+      }}
+    >
+      {item}
+    </button>
+  )
+))}
           <hr style={s.menuDivider} />
           <button style={{ ...s.menuBtn, ...s.menuBtnRojo }}
             onMouseEnter={(e: React.MouseEvent<HTMLButtonElement>) => { e.currentTarget.style.background = "rgba(192,57,43,0.08)"; }}

@@ -1,0 +1,295 @@
+:root {
+  --green: #00ab00;
+  --green-dark: #008a00;
+  --green-light: #edf7ed;
+  --text: #0e260e;
+  --soft: #6e8f6e;
+  --border: rgba(0, 171, 0, 0.18);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Outfit", sans-serif;
+  background: white;
+  color: var(--text);
+}
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 48px;
+  border-bottom: 3px solid var(--green);
+  background: white;
+}
+
+.logoWrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logoCircle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--green);
+}
+
+.logoImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.brandName {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 32px;
+  letter-spacing: 4px;
+  color: var(--green);
+}
+
+.headerUsuario {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.perfilCircle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 2px solid var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.hamburguesa {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.hamburguesa span {
+  display: block;
+  height: 2px;
+  background: var(--green);
+  margin: 5px 0;
+}
+
+.menu {
+  position: absolute;
+  top: 55px;
+  right: 0;
+  width: 200px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu button {
+  border: none;
+  background: transparent;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.menu button:hover {
+  background: var(--green-light);
+}
+
+.cerrarSesion {
+  color: #c0392b;
+}
+
+.main {
+  flex: 1;
+  padding: 40px;
+}
+
+.hero {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.tag {
+  color: var(--green);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.hero h1 {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 70px;
+  margin-bottom: 30px;
+}
+
+.hero h1 span {
+  color: var(--green);
+}
+
+.buscador {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.buscador input,
+.buscador select {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  min-width: 200px;
+}
+
+.buscador button {
+  background: var(--green);
+  color: white;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.buscador button:hover {
+  background: var(--green-dark);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: 0.2s;
+  background: white;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.imgWrap {
+  height: 180px;
+  background: var(--green-light);
+  position: relative;
+}
+
+.cardTipo {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: var(--green);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.favoritoBtn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.cardBody {
+  padding: 18px;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.rating {
+  color: #b2d100;
+  font-weight: bold;
+}
+
+.cardBody p {
+  margin-bottom: 8px;
+  color: var(--soft);
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+}
+
+.precio {
+  font-size: 24px;
+  color: var(--green);
+  font-family: "Bebas Neue", sans-serif;
+}
+
+.hora {
+  color: var(--soft);
+}
+
+.disponible {
+  background: var(--green-light);
+  color: var(--green);
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.ocupada {
+  background: rgba(192, 57, 43, 0.1);
+  color: #c0392b;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.footer {
+  background: var(--green);
+  color: white;
+  padding: 30px;
+  text-align: center;
+}
+
+.footer span {
+  display: block;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 24px;
+  margin-bottom: 10px;
+}
