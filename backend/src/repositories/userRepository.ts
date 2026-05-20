@@ -1,5 +1,5 @@
 import { ResultSetHeader, RowDataPacket } from 'mysql2';
-import pool from '../config/database';
+import { pool } from '../config/db';
 import { PublicUser, User, UserType } from '../models/user';
 
 interface UserRow extends RowDataPacket {

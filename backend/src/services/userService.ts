@@ -1,12 +1,12 @@
-import bcrypt from 'bcrypt';
 import { CreateUserDTO } from '../dtos/CreateUserDTO';
 import { UpdateUserDTO } from '../dtos/UpdateUserDTO';
 import { UserRepository } from '../repositories/userRepository';
+import { hashPassword } from '../utils/password';
 
 export const UserService = {
   async createUser(data: CreateUserDTO) {
     const { password, ...rest } = data;
-    const password_hash = await bcrypt.hash(password, 10);
+    const password_hash = await hashPassword(password);
 
     return await UserRepository.create({
       ...rest,
@@ -28,7 +28,7 @@ export const UserService = {
 
     return await UserRepository.update(id, {
       ...updates,
-      ...(password ? { password_hash: await bcrypt.hash(password, 10) } : {}),
+      ...(password ? { password_hash: await hashPassword(password) } : {}),
     });
   },
 
