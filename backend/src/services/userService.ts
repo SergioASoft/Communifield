@@ -1,41 +1,38 @@
-// src/services/userService.ts
-import { UserRepository } from '../repositories/userRepository';
-import { UpdateUserDTO } from '../dtos/UpdateUserDTO';
 import bcrypt from 'bcrypt';
 import { CreateUserDTO } from '../dtos/CreateUserDTO';
+import { UpdateUserDTO } from '../dtos/UpdateUserDTO';
+import { UserRepository } from '../repositories/userRepository';
 
 export const UserService = {
   async createUser(data: CreateUserDTO) {
     const { password, ...rest } = data;
-
     const password_hash = await bcrypt.hash(password, 10);
 
-    const userToSave = {
-        ...rest,
-        password_hash,
-    };
-
-    return await UserRepository.create(userToSave);
+    return await UserRepository.create({
+      ...rest,
+      phone: rest.phone ?? null,
+      password_hash,
+    });
   },
-  
-  async getAllUsers() {
-    return await UserRepository.findAll();
+
+  async getAllUsers(page: number, limit: number) {
+    return await UserRepository.findAllPaginated(page, limit);
   },
 
   async getUserById(id: number) {
     return await UserRepository.findById(id);
   },
 
- async updateUser(id: number, data: UpdateUserDTO) {
-  if (data.password) {
-    data.password_hash = await bcrypt.hash(data.password, 10);
-    delete data.password;
-  }
+  async updateUser(id: number, data: UpdateUserDTO) {
+    const { password, ...updates } = data;
 
-  return await UserRepository.update(id, data);
+    return await UserRepository.update(id, {
+      ...updates,
+      ...(password ? { password_hash: await bcrypt.hash(password, 10) } : {}),
+    });
   },
 
   async deleteUser(id: number) {
     return await UserRepository.delete(id);
-  }
+  },
 };

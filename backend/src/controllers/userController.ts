@@ -1,46 +1,46 @@
 import { Request, Response } from 'express';
-import { UserService } from '../services/userService';
 import { CreateUserDTO } from '../dtos/CreateUserDTO';
 import { UpdateUserDTO } from '../dtos/UpdateUserDTO';
+import { UserService } from '../services/userService';
 
 export const createUser = async (req: Request, res: Response) => {
   try {
     const data: CreateUserDTO = req.body;
-
     const newUser = await UserService.createUser(data);
 
     res.status(201).json({
-      message: "Usuario creado",
-      data: newUser
+      message: 'Usuario creado',
+      data: newUser,
     });
   } catch (error) {
-    res.status(500).json({ error: "Error al crear usuario" });
+    res.status(500).json({ error: 'Error al crear usuario' });
   }
 };
 
-export const getAllUsers = async (_req: Request, res: Response) => {
+export const getAllUsers = async (req: Request, res: Response) => {
   try {
-    const users = await UserService.getAllUsers();
+    const page = parseInt(req.query.page as string) || 0;
+    const limit = parseInt(req.query.limit as string) || 5;
+    const result = await UserService.getAllUsers(page, limit);
 
-    res.json(users);
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ error: "Error al obtener usuarios" });
+    res.status(500).json({ error: 'Error fetching users' });
   }
 };
 
 export const getUserById = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-
     const user = await UserService.getUserById(id);
 
     if (!user) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
+      return res.status(404).json({ error: 'Usuario no encontrado' });
     }
 
     res.json(user);
   } catch (error) {
-    res.status(500).json({ error: "Error al obtener usuario" });
+    res.status(500).json({ error: 'Error al obtener usuario' });
   }
 };
 
@@ -48,29 +48,30 @@ export const updateUser = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
     const data: UpdateUserDTO = req.body;
+    const updatedUser = await UserService.updateUser(id, data);
 
-    const result = await UserService.updateUser(id, data);
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
 
     res.json({
-      message: "Usuario actualizado",
-      result
+      message: 'Usuario actualizado',
+      data: updatedUser,
     });
   } catch (error) {
-    res.status(500).json({ error: "Error al actualizar usuario" });
+    res.status(500).json({ error: 'Error al actualizar usuario' });
   }
 };
 
 export const deleteUser = async (req: Request, res: Response) => {
   try {
     const id = Number(req.params.id);
-
-    const result = await UserService.deleteUser(id);
+    await UserService.deleteUser(id);
 
     res.json({
-      message: "Usuario eliminado",
-      result
+      message: 'Usuario eliminado',
     });
   } catch (error) {
-    res.status(500).json({ error: "Error al eliminar usuario" });
+    res.status(500).json({ error: 'Error al eliminar usuario' });
   }
 };
