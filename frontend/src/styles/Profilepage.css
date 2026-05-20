@@ -1,0 +1,440 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --white:        #ffffff;
+  --green:        #00ab00;
+  --green-dark:   #008a00;
+  --green-light:  #65c25d;
+  --green-pale:   #edf7ed;
+  --yellow-green: #b2d100;
+  --teal:         #49d0c1;
+  --text-dark:    #0e260e;
+  --text-body:    #3d5c3d;
+  --text-soft:    #6e8f6e;
+  --border:       rgba(0, 171, 0, 0.15);
+  --red:          #c0392b;
+  --bg:           #f0f7f0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.profile-page {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg);
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-dark);
+}
+
+/* ══════════════════════════════
+   HERO
+══════════════════════════════ */
+.profile-hero {
+  width: 100%;
+  position: relative;
+  padding: clamp(28px, 4vw, 52px) clamp(20px, 5vw, 80px) 120px;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--green-dark) 0%, var(--green) 50%, var(--green-light) 100%);
+}
+
+.profile-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 80% at 90% 50%, rgba(178,209,0,0.18) 0%, transparent 65%),
+    repeating-linear-gradient(90deg, transparent, transparent 79px, rgba(255,255,255,0.04) 79px, rgba(255,255,255,0.04) 80px),
+    repeating-linear-gradient(0deg,  transparent, transparent 79px, rgba(255,255,255,0.04) 79px, rgba(255,255,255,0.04) 80px);
+  pointer-events: none;
+}
+
+.profile-container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.profile-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(22px, 2.2vw, 30px);
+  letter-spacing: 5px;
+  color: var(--white);
+  margin-bottom: clamp(28px, 4vw, 52px);
+  text-decoration: none;
+}
+
+.profile-logo-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--yellow-green);
+  flex-shrink: 0;
+}
+
+.hero-content {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(20px, 4vw, 44px);
+}
+
+/* ── Avatar ── */
+.avatar-wrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.avatar-ring {
+  width: clamp(100px, 12vw, 156px);
+  height: clamp(100px, 12vw, 156px);
+  border-radius: 50%;
+  padding: 4px;
+  background: linear-gradient(135deg, var(--yellow-green), var(--teal));
+}
+
+.avatar-fallback,
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 4px solid var(--green-dark);
+}
+
+.avatar-fallback {
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-img {
+  object-fit: cover;
+}
+
+.avatar-initials {
+  color: var(--green);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(32px, 5vw, 56px);
+  letter-spacing: 2px;
+  line-height: 1;
+}
+
+.avatar-edit-btn {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--yellow-green);
+  border: 3px solid var(--green-dark);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.avatar-edit-btn:hover {
+  transform: scale(1.12);
+  background: #c8e900;
+}
+
+/* ── Hero Info ── */
+.hero-info {
+  min-width: 0;
+  flex: 1;
+  padding-bottom: 6px;
+}
+
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--white);
+  margin-bottom: 12px;
+  backdrop-filter: blur(4px);
+}
+
+.user-name {
+  color: var(--white);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(40px, 6vw, 72px);
+  letter-spacing: 2px;
+  line-height: 1;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.user-email {
+  color: rgba(255,255,255,0.75);
+  font-size: clamp(13px, 1.4vw, 16px);
+  margin-bottom: 18px;
+  word-break: break-word;
+}
+
+.tag-position {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-radius: 999px;
+  background: var(--yellow-green);
+  color: var(--text-dark);
+  font-size: clamp(12px, 1.2vw, 14px);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 14px rgba(178,209,0,0.35);
+}
+
+/* ══════════════════════════════
+   BODY
+══════════════════════════════ */
+.profile-body {
+  width: 100%;
+  padding: 0 clamp(20px, 5vw, 80px) 60px;
+  margin-top: -64px;
+  position: relative;
+  z-index: 2;
+}
+
+.profile-content {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ══════════════════════════════
+   CARD
+══════════════════════════════ */
+.card {
+  background: var(--white);
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  padding: clamp(24px, 3.5vw, 40px);
+  box-shadow: 0 8px 32px rgba(0,171,0,0.07), 0 1px 4px rgba(0,0,0,0.04);
+  animation: fadeUp 0.5s ease both;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1.5px solid var(--border);
+}
+
+.card-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(22px, 2.2vw, 28px);
+  letter-spacing: 1.5px;
+  color: var(--text-dark);
+}
+
+.edit-btn {
+  font-family: 'Outfit', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--green-pale);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 18px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.edit-btn:hover {
+  background: rgba(0,171,0,0.12);
+  border-color: var(--green);
+}
+
+/* ══════════════════════════════
+   FIELDS
+══════════════════════════════ */
+.fields-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 22px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field-full {
+  grid-column: 1 / -1;
+}
+
+.field-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-soft);
+}
+
+.field-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-dark);
+  line-height: 1.6;
+  word-break: break-word;
+  padding: 12px 14px;
+  background: var(--bg);
+  border-radius: 9px;
+  border: 1.5px solid transparent;
+}
+
+.field-input,
+.field-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-dark);
+  background: var(--green-pale);
+  outline: none;
+  font-family: 'Outfit', sans-serif;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.field-input:focus,
+.field-textarea:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(0,171,0,0.10);
+  background: var(--white);
+}
+
+.field-textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+/* ══════════════════════════════
+   BOTONES
+══════════════════════════════ */
+.save-btn {
+  width: 100%;
+  padding: 15px;
+  background: var(--green);
+  color: var(--white);
+  border: none;
+  border-radius: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  margin-top: 24px;
+  transition: background 0.22s, transform 0.22s, box-shadow 0.22s;
+  box-shadow: 0 4px 18px rgba(0,171,0,0.25);
+  letter-spacing: 0.3px;
+}
+
+.save-btn:hover {
+  background: var(--green-dark);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 28px rgba(0,171,0,0.30);
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 15px;
+  background: var(--white);
+  color: var(--red);
+  border: 1.5px solid rgba(192,57,43,0.22);
+  border-radius: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s ease;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+  letter-spacing: 0.2px;
+}
+
+.logout-btn:hover {
+  background: rgba(192,57,43,0.05);
+  border-color: var(--red);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(192,57,43,0.12);
+}
+
+/* ══════════════════════════════
+   ANIMACIONES
+══════════════════════════════ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ══════════════════════════════
+   RESPONSIVE
+══════════════════════════════ */
+@media (max-width: 768px) {
+  .profile-hero {
+    padding: 24px 20px 96px;
+  }
+
+  .hero-content {
+    align-items: flex-start;
+  }
+
+  .fields-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .field-full {
+    grid-column: 1;
+  }
+}
+
+@media (max-width: 520px) {
+  .hero-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .profile-body {
+    margin-top: -52px;
+    padding-bottom: 36px;
+  }
+
+  .card {
+    border-radius: 16px;
+  }
+}
