@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Mail, Lock, ArrowRight, User, Phone, Eye, EyeOff, Apple } from "lucide-react";
 import { api } from "../services/api";
+import type { ApiError } from "../services/api";
 import "../styles/auth.css";
 
 type Mode = "login" | "register";
