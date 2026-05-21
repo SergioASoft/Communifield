@@ -44,7 +44,7 @@ export default function HomePage() {
               conoce nuevas personas.
             </p>
             <div className="hero-ctas">
-              <a href="/canchas" className="cta-primary">Reservar ahora</a>
+              
               <a href="/canchas" className="cta-outline">Ver canchas →</a>
             </div>
           </div>
@@ -79,9 +79,9 @@ export default function HomePage() {
         <section className="cta-banner">
           <div>
             <h2>¿Listo para jugar?</h2>
-            <p>Registro gratuito, sin complicaciones. Únete hoy.</p>
+            <p>Inicio gratuito, sin complicaciones. Únete hoy.</p>
           </div>
-          <a href="#" className="btn-banner">Crear cuenta gratis →</a>
+          <a href="/login" className="btn-banner">Iniciar gratis →</a>
         </section>
       </main>
 
