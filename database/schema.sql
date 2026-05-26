@@ -30,12 +30,27 @@ CREATE TABLE payment (
 -- =========================
 CREATE TABLE space (
     space_id INT PRIMARY KEY AUTO_INCREMENT,
-    venue VARCHAR(200) NOT NULL,
-    status VARCHAR(50) NOT NULL,
+    nombre VARCHAR(150) NOT NULL,
+    tipo VARCHAR(100) NOT NULL,
+    ubicacion VARCHAR(255) NOT NULL,
+    distancia VARCHAR(50),
+    descripcion JSON,
+    precio_hora DECIMAL(10,2) DEFAULT 0,
+    rating DECIMAL(2,1) DEFAULT 0,
+    total_resenas INT DEFAULT 0,
+    disponible_hoy BOOLEAN DEFAULT TRUE,
+    imagen_principal TEXT,
+    imagenes JSON,
+    caracteristicas JSON,
+    horarios JSON,
+    resenas JSON,
+    estado ENUM('active', 'inactive') DEFAULT 'active',
     activation_date DATETIME,
-    deactivation_date DATETIME
+    deactivation_date DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP
 );
-
 -- =========================
 -- 📅 EVENT
 -- =========================
