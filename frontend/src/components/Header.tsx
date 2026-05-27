@@ -89,7 +89,7 @@ export default function Header({ usuario }: HeaderProps) {
             <hr className="menu-divider" />
             <a href="/perfil" className="menu-item">Mi perfil</a>
             <a href="#" className="menu-item">Mis reservas</a>
-            <a href="#" className="menu-item">Mis partidos</a>
+            <a href="#" className="menu-item">Mis amigos</a>
             <a href="#" className="menu-item">Configuración</a>
             <hr className="menu-divider" />
             <a href="#" className="menu-item menu-salir"> Cerrar sesión</a>

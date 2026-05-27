@@ -19,12 +19,14 @@ body {
   color: var(--text);
 }
 
+/* ── Página ──────────────────────────────── */
 .page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
+/* ── Header ──────────────────────────────── */
 .header {
   display: flex;
   justify-content: space-between;
@@ -32,6 +34,10 @@ body {
   padding: 18px 48px;
   border-bottom: 3px solid var(--green);
   background: white;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 16px rgba(0, 171, 0, 0.09);
 }
 
 .logoWrap {
@@ -126,83 +132,162 @@ body {
   color: #c0392b;
 }
 
+/* ── Main ────────────────────────────────── */
 .main {
   flex: 1;
-  padding: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 40px 60px;
 }
 
+/* ── Hero / Buscador ─────────────────────── */
 .hero {
   text-align: center;
-  margin-bottom: 50px;
+  padding: 52px 0 44px;
 }
 
 .tag {
+  display: inline-block;
   color: var(--green);
   font-weight: 700;
-  margin-bottom: 10px;
+  font-size: 12px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
 }
 
 .hero h1 {
   font-family: "Bebas Neue", sans-serif;
-  font-size: 70px;
-  margin-bottom: 30px;
+  font-size: 64px;
+  letter-spacing: 2px;
+  margin-bottom: 32px;
+  line-height: 1;
 }
 
 .hero h1 span {
   color: var(--green);
 }
 
+/* Buscador: 4 campos + botón en fila flexible */
 .buscador {
   display: flex;
-  gap: 10px;
-  justify-content: center;
   flex-wrap: wrap;
+  gap: 10px;
+  background: white;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: 0 4px 24px rgba(0, 171, 0, 0.09);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.buscadorCampo {
+  flex: 1 1 180px;
+  display: flex;
+  align-items: center;
+  background: var(--green-light);
+  border-radius: 9px;
+  padding: 0 14px;
+  border: 1.5px solid transparent;
+}
+
+.buscadorCampo:focus-within {
+  border-color: var(--green);
 }
 
 .buscador input,
 .buscador select {
-  padding: 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  min-width: 200px;
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: "Outfit", sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  padding: 13px 0;
+  outline: none;
+  width: 100%;
+  appearance: none;
 }
 
 .buscador button {
   background: var(--green);
   color: white;
   border: none;
-  padding: 14px 24px;
-  border-radius: 10px;
+  padding: 14px 28px;
+  border-radius: 9px;
   cursor: pointer;
-  font-weight: 600;
+  font-family: "Outfit", sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.2s;
 }
 
 .buscador button:hover {
   background: var(--green-dark);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 20px;
+/* ── Barra de resultados ─────────────────── */
+.barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
 
+.resultado {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--soft);
+}
+
+.ordenSelect {
+  padding: 8px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-family: "Outfit", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  background: white;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+}
+
+/* ── Grid (sin columna de filtros) ───────── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 18px;
+}
+
+/* ── Cards ───────────────────────────────── */
 .card {
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
-  transition: 0.2s;
+  transition: all 0.25s ease;
   background: white;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .card:hover {
   transform: translateY(-5px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
+  border-color: rgba(0, 171, 0, 0.35);
 }
 
 .imgWrap {
   height: 180px;
   background: var(--green-light);
   position: relative;
+  overflow: hidden;
 }
 
 .cardTipo {
@@ -211,9 +296,10 @@ body {
   left: 10px;
   background: var(--green);
   color: white;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .favoritoBtn {
@@ -221,75 +307,217 @@ body {
   top: 10px;
   right: 10px;
   border: none;
-  width: 35px;
-  height: 35px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   cursor: pointer;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s;
 }
 
 .cardBody {
-  padding: 18px;
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
 }
 
 .cardTop {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 10px;
+  gap: 8px;
 }
 
 .rating {
   color: #b2d100;
   font-weight: bold;
+  font-size: 13px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .cardBody p {
-  margin-bottom: 8px;
+  margin-bottom: 0;
   color: var(--soft);
+  font-size: 13px;
 }
 
 .cardFooter {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 15px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1.5px solid var(--border);
 }
 
 .precio {
-  font-size: 24px;
+  font-size: 22px;
   color: var(--green);
   font-family: "Bebas Neue", sans-serif;
-}
-
-.hora {
-  color: var(--soft);
+  letter-spacing: 1px;
 }
 
 .disponible {
   background: var(--green-light);
   color: var(--green);
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--border);
 }
 
 .ocupada {
-  background: rgba(192, 57, 43, 0.1);
+  background: rgba(192, 57, 43, 0.07);
   color: #c0392b;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid rgba(192, 57, 43, 0.2);
 }
 
+/* ── Skeleton loading ────────────────────── */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.skeletonCard {
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: white;
+}
+
+.skeletonImg {
+  width: 100%;
+  height: 180px;
+  background: #e8f5e8;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.skeletonBody {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeletonLine {
+  height: 14px;
+  border-radius: 6px;
+  background: #e8f5e8;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* ── Paginación ──────────────────────────── */
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 40px;
+}
+
+.pagBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: white;
+  font-family: "Outfit", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.pagBtn:hover,
+.pagBtn.activo {
+  background: var(--green);
+  border-color: var(--green);
+  color: white;
+}
+
+/* ── Footer ──────────────────────────────── */
 .footer {
   background: var(--green);
   color: white;
-  padding: 30px;
-  text-align: center;
+  padding: 28px 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
 .footer span {
-  display: block;
   font-family: "Bebas Neue", sans-serif;
-  font-size: 24px;
-  margin-bottom: 10px;
+  font-size: 22px;
+  letter-spacing: 4px;
+}
+
+.footerLinks {
+  display: flex;
+  gap: 28px;
+}
+
+.footerLink {
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.footerCopy {
+  width: 100%;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* ── Responsive ──────────────────────────── */
+@media (max-width: 768px) {
+  .header {
+    padding: 14px 20px;
+  }
+
+  .main {
+    padding: 0 16px 40px;
+  }
+
+  .hero h1 {
+    font-size: 44px;
+  }
+
+  .buscador {
+    flex-direction: column;
+  }
+
+  .buscadorCampo {
+    flex: 1 1 100%;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .footer {
+    padding: 24px 20px;
+    flex-direction: column;
+    text-align: center;
+  }
 }

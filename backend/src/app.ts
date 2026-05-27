@@ -7,6 +7,7 @@ import { testDatabaseConnection } from "./config/db";
 import { authRouter } from "./routes/auth.routes";
 import { userRouter } from "./routes/user.routes";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
+import canchaRouter from "./routes/cancharoutes";
 
 export const app = express();
 
@@ -37,6 +38,8 @@ app.use("/users", userRouter);
 // Alias para proyectos que ya usaban /api
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
+
+app.use("/api/canchas", canchaRouter);
 
 app.use(notFound);
 app.use(errorHandler);
