@@ -188,11 +188,10 @@ export const UserManagement: React.FC = () => {
           <nav className="sidebar-menu" aria-label="Admin sections">
             <button type="button">Dashboard</button>
             <button type="button" className="active">
-              User Management
+              Gestión de Usuarios
             </button>
-            <button type="button">Field Operations</button>
-            <button type="button">Tournament Engine</button>
-            <button type="button">System Settings</button>
+            <button type="button">Gestión de Canchas</button>
+            <button type="button">Asistente IA</button>
           </nav>
         </div>
       </aside>
@@ -218,7 +217,7 @@ export const UserManagement: React.FC = () => {
 
         <section className="page-header">
           <div>
-            <h2>User Management</h2>
+            <h2>Gestión de Usuarios</h2>
             <p>Administra usuarios, teléfonos y tipos según la tabla users de CommuniField.</p>
           </div>
         </section>
