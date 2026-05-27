@@ -1,7 +1,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Usuario } from '../types';
-import { Link } from "react-router-dom";
 
 interface HeaderProps {
   usuario?: Usuario; 
