@@ -1,7 +1,5 @@
 import { useState } from "react";
 
-import { Cancha } from "../types";
-
 import { HORARIOS_SELECT } from "../data/canchaData";
 
 interface ReservaPanelProps {

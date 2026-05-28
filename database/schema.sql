@@ -185,3 +185,25 @@ BEGIN
 END$$
 
 DELIMITER ;
+
+INSERT INTO USUARIO (
+    nombre, 
+    email, 
+    contraseña_hash, 
+    tel, 
+    biografia, 
+    Tipo, 
+    foto, 
+    posicion, 
+    fk_id_evento
+) VALUES (
+    'Administrador Central',
+    'admin@ejemplo.com',
+    '$2b$10$R9hazDXw6S8A69mK8LpHee3mPApYQ7M3f7zB1IumGv9Bv8vGQuFqO', -- 'Admin123*' en BCrypt
+    '+123456789',
+    'Cuenta de administrador para pruebas del sistema.',
+    'admin',
+    'perfil_admin.png',
+    'Director Técnico',
+    NULL
+);

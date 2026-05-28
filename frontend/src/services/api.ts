@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 export type ApiError = { message: string; errors?: Record<string, string[]> };
 
@@ -51,8 +51,21 @@ export const api = {
   put: <T>(path: string, body?: unknown, options: RequestOptions = {}) =>
     requestResponse<T>(path, { ...options, method: "PUT", body: body === undefined ? undefined : JSON.stringify(body) }),
   delete: <T = unknown>(path: string, options: RequestOptions = {}) => requestResponse<T>(path, { ...options, method: "DELETE" }),
-  login: (body: { email: string; password: string; role: "gestor" | "player" }) =>
-    request<{ token: string; user: any; message: string }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
-  register: (body: { name: string; username: string; email: string; phone: string; password: string; role: "gestor" | "player" }) =>
+  getMe: async () => {
+    const data = await request<{ user: any }>("/auth/me", { method: "GET" });
+    return data.user;
+  },
+  updateMe: async (body: { name?: string; phone?: string; bio?: string; position?: string }) => {
+    const storedUser = localStorage.getItem("communifield_user");
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    const id = user?.user_id || user?.id;
+    if (!id) throw { message: "No se encontro el usuario autenticado" } as ApiError;
+
+    const data = await request<{ data: any }>(`/users/${id}`, { method: "PUT", body: JSON.stringify(body) });
+    return data.data;
+  },
+  login: (body: { email: string; password: string }) =>
+    request<{ token: string; user: any; message: string; redirectTo: string }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
+  register: (body: { name: string; email: string; phone: string; password: string; type: "organizer" | "player" }) =>
     request<{ message: string; userId: number }>("/users/register", { method: "POST", body: JSON.stringify(body) }),
 };

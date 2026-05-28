@@ -109,7 +109,7 @@ export default function CanchaPage() {
   }, []);
 
   useEffect(() => {
-    fetch(`http://localhost:3000/api/canchas/${id}`)
+    fetch(`/api/canchas/${id}`)
       .then((res) => res.json())
       .then((data) => {
         setCancha({

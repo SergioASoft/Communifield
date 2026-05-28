@@ -242,6 +242,19 @@ form {
   width: 100%;
 }
 
+.input-wrap select {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  color: var(--text-dark);
+  padding: 12px 0;
+  outline: none;
+  width: 100%;
+  cursor: pointer;
+}
+
 .input-wrap input::placeholder {
   color: var(--text-soft);
 }
