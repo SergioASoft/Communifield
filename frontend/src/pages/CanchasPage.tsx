@@ -6,6 +6,7 @@ interface Cancha {
   ubicacion: string;
   tipo: string;
   superficie: string;
+  dimensiones?: string;
   precio: string;
   rating: string;
   disponible: boolean;
