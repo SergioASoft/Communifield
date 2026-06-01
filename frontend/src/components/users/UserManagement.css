@@ -159,7 +159,8 @@
 }
 
 .form-grid input,
-.form-grid select {
+.form-grid select,
+.form-grid textarea {
   width: 100%;
   border: 1px solid #d9dfd4;
   background: #fbfcfa;
@@ -167,6 +168,15 @@
   padding: 12px 13px;
   border-radius: 8px;
   font-size: 14px;
+}
+
+.form-grid textarea {
+  min-height: 44px;
+  resize: vertical;
+}
+
+.wide-field {
+  grid-column: span 2;
 }
 
 .form-actions {
@@ -261,6 +271,13 @@
   font-size: 32px;
   font-weight: 800;
   color: #117a37;
+  overflow: hidden;
+}
+
+.user-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .user-card h3 {
@@ -273,11 +290,20 @@
 }
 
 .user-email,
-.user-phone {
+.user-phone,
+.user-position,
+.user-bio {
   margin: 10px 0 0;
   color: #4a5546;
   font-size: 14px;
   overflow-wrap: anywhere;
+}
+
+.user-bio {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .card-divider {
@@ -390,6 +416,10 @@
 
   .form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .wide-field {
+    grid-column: auto;
   }
 
   .form-actions,

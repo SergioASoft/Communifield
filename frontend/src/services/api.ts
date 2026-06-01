@@ -55,14 +55,9 @@ export const api = {
     const data = await request<{ user: any }>("/auth/me", { method: "GET" });
     return data.user;
   },
-  updateMe: async (body: { name?: string; phone?: string; bio?: string; position?: string }) => {
-    const storedUser = localStorage.getItem("communifield_user");
-    const user = storedUser ? JSON.parse(storedUser) : null;
-    const id = user?.user_id || user?.id;
-    if (!id) throw { message: "No se encontro el usuario autenticado" } as ApiError;
-
-    const data = await request<{ data: any }>(`/users/${id}`, { method: "PUT", body: JSON.stringify(body) });
-    return data.data;
+  updateMe: async (body: { name?: string; phone?: string; bio?: string; photo?: string; photoFile?: { name: string; type: string; dataUrl: string } | null; position?: string }) => {
+    const data = await request<{ user?: any; data?: any }>("/auth/me", { method: "PUT", body: JSON.stringify(body) });
+    return data.user ?? data.data;
   },
   login: (body: { email: string; password: string }) =>
     request<{ token: string; user: any; message: string; redirectTo: string }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),

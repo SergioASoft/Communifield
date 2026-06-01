@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   createUser,
@@ -14,6 +14,9 @@ const emptyForm: UserFormPayload = {
   name: "",
   email: "",
   phone: "",
+  bio: "",
+  photo: "",
+  position: "",
   type: "player",
   password: "",
 };
@@ -30,6 +33,8 @@ export const UserManagement: React.FC = () => {
   const [search, setSearch] = useState("");
   const [form, setForm] = useState<UserFormPayload>(emptyForm);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const formPanelRef = useRef<HTMLElement | null>(null);
+  const firstInputRef = useRef<HTMLInputElement | null>(null);
 
   // Estado para controlar la visibilidad de la contraseña
   const [showPassword, setShowPassword] = useState(false);
@@ -63,9 +68,8 @@ export const UserManagement: React.FC = () => {
     }
 
     return users.filter((user) =>
-      [user.name, user.email, user.phone ?? "", user.type].some((value) =>
-        value.toLowerCase().includes(term)
-      )
+      [user.name, user.email, user.phone ?? "", user.bio ?? "", user.position ?? "", user.type]
+        .some((value) => value.toLowerCase().includes(term))
     );
   }, [search, users]);
 
@@ -87,6 +91,40 @@ export const UserManagement: React.FC = () => {
   const validatePasswordStrength = (password: string): boolean => {
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
     return passwordRegex.test(password);
+  };
+
+  const readImageFile = (file: File) =>
+    new Promise<UserFormPayload["photoFile"]>((resolve, reject) => {
+      if (!file.type.startsWith("image/")) {
+        reject(new Error("Selecciona un archivo de imagen."));
+        return;
+      }
+
+      if (file.size > 3 * 1024 * 1024) {
+        reject(new Error("La imagen no puede superar 3MB."));
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => resolve({ name: file.name, type: file.type, dataUrl: String(reader.result) });
+      reader.onerror = () => reject(new Error("No se pudo leer la imagen."));
+      reader.readAsDataURL(file);
+    });
+
+  const handlePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const photoFile = await readImageFile(file);
+      setForm((prev) => ({
+        ...prev,
+        photoFile,
+        photo: photoFile?.dataUrl ?? prev.photo,
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cargar la imagen.");
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -118,6 +156,10 @@ export const UserManagement: React.FC = () => {
       name: form.name.trim(),
       email: form.email.trim(),
       phone: form.phone?.trim() || null,
+      bio: form.bio?.trim() || null,
+      photo: form.photo?.startsWith("data:") ? null : form.photo?.trim() || null,
+      photoFile: form.photoFile ?? null,
+      position: form.position?.trim() || null,
       type: form.type,
       ...(form.password ? { password: form.password } : {}),
     };
@@ -129,13 +171,13 @@ export const UserManagement: React.FC = () => {
           prev.map((user) => (user.user_id === updatedUser.user_id ? updatedUser : user))
         );
       } else {
-        const createdUser = await createUser(payload as Required<UserFormPayload>);
+        const createdUser = await createUser(payload);
         setUsers((prev) => [createdUser, ...prev]);
       }
 
       resetForm();
     } catch (err) {
-      setError("No se pudo guardar el usuario. Revisa email o teléfono duplicados.");
+      setError("No se pudo guardar el usuario. Revisa si el email ya esta registrado.");
     } finally {
       setSaving(false);
     }
@@ -149,9 +191,16 @@ export const UserManagement: React.FC = () => {
       name: user.name,
       email: user.email,
       phone: user.phone ?? "",
+      bio: user.bio ?? "",
+      photo: user.photo ?? "",
+      position: user.position ?? "",
       type: user.type,
       password: "",
     });
+    window.setTimeout(() => {
+      formPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      firstInputRef.current?.focus();
+    }, 0);
   };
 
   const handleDelete = async (userId: number) => {
@@ -218,11 +267,11 @@ export const UserManagement: React.FC = () => {
         <section className="page-header">
           <div>
             <h2>Gestión de Usuarios</h2>
-            <p>Administra usuarios, teléfonos y tipos según la tabla users de CommuniField.</p>
+            <p>Administra usuarios, perfil y tipos segun la tabla USUARIO de CommuniField.</p>
           </div>
         </section>
 
-        <section className="management-panel">
+        <section className="management-panel" ref={formPanelRef}>
           <form className="user-form" onSubmit={handleSubmit}>
             <h3>{editingUser ? "Editar usuario" : "Nuevo usuario"}</h3>
 
@@ -230,6 +279,7 @@ export const UserManagement: React.FC = () => {
               <label>
                 Nombre
                 <input
+                  ref={firstInputRef}
                   type="text"
                   value={form.name}
                   onChange={(event) => setForm({ ...form, name: event.target.value })}
@@ -269,6 +319,35 @@ export const UserManagement: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </label>
+
+              <label>
+                Posicion
+                <input
+                  type="text"
+                  value={form.position ?? ""}
+                  onChange={(event) => setForm({ ...form, position: event.target.value })}
+                  placeholder="Ej: Delantero"
+                />
+              </label>
+
+              <label>
+                Foto
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={handlePhotoChange}
+                />
+              </label>
+
+              <label className="wide-field">
+                Biografia
+                <textarea
+                  value={form.bio ?? ""}
+                  onChange={(event) => setForm({ ...form, bio: event.target.value })}
+                  placeholder="Perfil breve del usuario"
+                  rows={3}
+                />
               </label>
 
               <label>

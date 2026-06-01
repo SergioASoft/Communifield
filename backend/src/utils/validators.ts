@@ -13,6 +13,14 @@ export const registerSchema = z.object({
   phone: z.string().min(7, "Telefono invalido").max(20).regex(/^[0-9+\s-]+$/, "Telefono invalido"),
   password: strongPassword,
   type: z.enum(["organizer", "player"]),
+  bio: z.string().optional(),
+  photo: z.string().optional(),
+  photoFile: z.object({
+    name: z.string(),
+    type: z.string(),
+    dataUrl: z.string(),
+  }).optional(),
+  position: z.string().max(100).optional(),
 });
 
 export const loginSchema = z.object({

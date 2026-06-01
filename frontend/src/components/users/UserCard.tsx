@@ -1,5 +1,5 @@
 import React from "react";
-import type { User } from "../../services/userService";
+import { resolvePhotoUrl, type User } from "../../services/userService";
 import "./UserManagement.css";
 
 interface Props {
@@ -16,17 +16,22 @@ const typeLabel: Record<User["type"], string> = {
 
 export const UserCard: React.FC<Props> = ({ user, onEdit, onDelete }) => {
   const initial = user.name.trim().charAt(0).toUpperCase() || "U";
+  const photoUrl = resolvePhotoUrl(user.photo);
 
   return (
     <article className="user-card">
       <div className={`role-badge ${user.type}`}>{typeLabel[user.type]}</div>
 
-      <div className="user-image">{initial}</div>
+      <div className="user-image">
+        {photoUrl ? <img src={photoUrl} alt={user.name} /> : initial}
+      </div>
 
       <h3>{user.name}</h3>
 
       <p className="user-email">{user.email}</p>
       <p className="user-phone">{user.phone ?? "Sin telefono"}</p>
+      <p className="user-position">{user.position ?? "Sin posicion"}</p>
+      {user.bio && <p className="user-bio">{user.bio}</p>}
 
       <div className="card-divider" />
 
