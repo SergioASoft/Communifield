@@ -13,7 +13,7 @@ export const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "6mb" }));
 app.use(rateLimit({
   windowMs: env.rateLimitWindowMinutes * 60 * 1000,
   max: env.rateLimitMax,

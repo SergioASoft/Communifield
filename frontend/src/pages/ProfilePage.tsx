@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
+import { resolvePhotoUrl, type PhotoFilePayload } from "../services/userService";
 import "../styles/ProfilePage.css";
 
 type UserProfile = {
@@ -10,8 +11,9 @@ type UserProfile = {
   phone?: string;
   bio?: string;
   photo?: string | null;
+  photoFile?: PhotoFilePayload | null;
   position?: string;
-  role?: "gestor" | "player";
+  role?: "gestor" | "player" | "admin";
 };
 
 function getInitials(name: string) {
@@ -75,6 +77,8 @@ const ProfilePage = () => {
         name: form.name,
         phone: form.phone,
         bio: form.bio,
+        photo: form.photo?.startsWith("data:") ? undefined : form.photo ?? undefined,
+        photoFile: form.photoFile ?? null,
         position: form.position,
       });
 
@@ -87,10 +91,38 @@ const ProfilePage = () => {
     }
   };
 
+  const handlePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !form) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Selecciona un archivo de imagen.");
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      alert("La imagen no puede superar 3MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result);
+      setForm({
+        ...form,
+        photo: dataUrl,
+        photoFile: { name: file.name, type: file.type, dataUrl },
+      });
+    };
+    reader.onerror = () => alert("No se pudo leer la imagen.");
+    reader.readAsDataURL(file);
+  };
+
   if (loading) return <p>Cargando perfil...</p>;
   if (!user || !form) return null;
 
   const initials = getInitials(user.name);
+  const displayPhoto = resolvePhotoUrl(isEditing ? form.photo : user.photo);
 
   return (
     <main className="profile-page">
@@ -103,8 +135,8 @@ const ProfilePage = () => {
           <div className="hero-content">
             <div className="avatar-wrapper">
               <div className="avatar-ring">
-                {user.photo ? (
-                  <img src={user.photo} alt="Foto de perfil" className="avatar-img" />
+                {displayPhoto ? (
+                  <img src={displayPhoto} alt="Foto de perfil" className="avatar-img" />
                 ) : (
                   <div className="avatar-fallback">
                     <span className="avatar-initials">{initials}</span>
@@ -177,6 +209,20 @@ const ProfilePage = () => {
                   />
                 ) : (
                   <p className="field-value">{user.position || "Sin posición"}</p>
+                )}
+              </div>
+
+              <div className="field">
+                <label className="field-label">Foto</label>
+                {isEditing ? (
+                  <input
+                    className="field-input"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    onChange={handlePhotoChange}
+                  />
+                ) : (
+                  <p className="field-value">{displayPhoto ? "Foto cargada" : "Sin foto"}</p>
                 )}
               </div>
 
