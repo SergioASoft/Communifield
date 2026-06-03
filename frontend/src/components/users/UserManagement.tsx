@@ -8,6 +8,7 @@ import {
 } from "../../services/userService";
 import type { User, UserFormPayload, UserType } from "../../services/userService";
 import { UserCard } from "./UserCard";
+import { AdminAssistant } from "./AdminAssistant";
 import "./UserManagement.css";
 
 const emptyForm: UserFormPayload = {
@@ -24,6 +25,7 @@ const emptyForm: UserFormPayload = {
 const userTypeOptions: UserType[] = ["player", "organizer", "admin"];
 
 export const UserManagement: React.FC = () => {
+  const [activeSection, setActiveSection] = useState<"users" | "assistant">("users");
   const [users, setUsers] = useState<User[]>([]);
   const [page, setPage] = useState(0);
   const [lastPage, setLastPage] = useState(false);
@@ -236,17 +238,28 @@ export const UserManagement: React.FC = () => {
 
           <nav className="sidebar-menu" aria-label="Admin sections">
             <button type="button">Dashboard</button>
-            <button type="button" className="active">
+            <button
+              type="button"
+              className={activeSection === "users" ? "active" : ""}
+              onClick={() => setActiveSection("users")}
+            >
               Gestión de Usuarios
             </button>
             <button type="button">Gestión de Canchas</button>
-            <button type="button">Asistente IA</button>
+            <button
+              type="button"
+              className={activeSection === "assistant" ? "active" : ""}
+              onClick={() => setActiveSection("assistant")}
+            >
+              Asistente IA
+            </button>
           </nav>
         </div>
       </aside>
 
       <main className="main-content">
         <header className="topbar">
+          {activeSection === "users" ? (
           <input
             type="search"
             placeholder="Buscar por nombre, email, teléfono o tipo"
@@ -254,6 +267,9 @@ export const UserManagement: React.FC = () => {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
+          ) : (
+            <div className="topbar-title">Asistente IA</div>
+          )}
 
           <div className="admin-profile">
             <div>
@@ -264,6 +280,8 @@ export const UserManagement: React.FC = () => {
           </div>
         </header>
 
+        {activeSection === "users" ? (
+          <>
         <section className="page-header">
           <div>
             <h2>Gestión de Usuarios</h2>
@@ -408,6 +426,18 @@ export const UserManagement: React.FC = () => {
             <p className="end-message">No hay más usuarios para mostrar</p>
           )}
         </section>
+          </>
+        ) : (
+          <>
+            <section className="page-header">
+              <div>
+                <h2>Asistente IA</h2>
+                <p>Conversa con el agente administrativo conectado a herramientas MCP de CommuniField.</p>
+              </div>
+            </section>
+            <AdminAssistant />
+          </>
+        )}
       </main>
     </div>
   );
