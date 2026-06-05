@@ -15,7 +15,7 @@ class GeminiClient:
     def enabled(self) -> bool:
         return bool(self.api_key)
 
-    def generate(self, prompt: str) -> str:
+    def generate(self, prompt: str, system_instruction: str | None = None) -> str:
         if not self.enabled:
             raise RuntimeError("GEMINI_API_KEY no esta configurada.")
 
@@ -25,7 +25,7 @@ class GeminiClient:
             "systemInstruction": {
                 "parts": [
                     {
-                        "text": (
+                        "text": system_instruction or (
                             "Eres el asistente IA administrativo de CommuniField. "
                             "Responde en espanol claro, profesional y accionable. "
                             "Usa los datos de herramientas MCP como fuente principal. "

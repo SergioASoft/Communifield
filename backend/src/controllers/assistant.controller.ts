@@ -11,8 +11,9 @@ type AssistantRequestBody = {
   conversation?: AssistantMessage[];
 };
 
-export async function chatWithAdminAssistant(req: Request<unknown, unknown, AssistantRequestBody>, res: Response) {
+export async function chatWithAssistant(req: Request<unknown, unknown, AssistantRequestBody>, res: Response) {
   const message = req.body.message?.trim();
+  const channel = req.originalUrl.includes("/manager/") ? "manager" : "admin";
 
   if (!message) {
     return res.status(400).json({ message: "Escribe una consulta para el asistente." });
@@ -26,7 +27,7 @@ export async function chatWithAdminAssistant(req: Request<unknown, unknown, Assi
         message,
         conversation: req.body.conversation ?? [],
         user: (req as any).user ?? null,
-        channel: "admin",
+        channel,
       }),
     });
 

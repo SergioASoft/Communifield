@@ -21,3 +21,15 @@ export async function sendAdminAssistantMessage(
 
   return data;
 }
+
+export async function sendManagerAssistantMessage(
+  message: string,
+  conversation: AssistantChatMessage[]
+) {
+  const { data } = await api.post<AssistantChatResponse>("/api/assistant/manager/chat", {
+    message,
+    conversation,
+  });
+
+  return data;
+}

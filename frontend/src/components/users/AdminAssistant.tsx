@@ -10,7 +10,7 @@ const initialMessages: AssistantChatMessage[] = [
   {
     role: "assistant",
     content:
-      "Hola. Soy el asistente administrativo de CommuniField. Puedo revisar ingresos, reservas y estado de las canchas para sugerir decisiones de precio u operacion.",
+      "Hola. Soy el asistente administrativo de CommuniField. Puedo ayudarte con estadisticas de usuarios, canchas, eventos, pagos, suscripciones de gestores y reportes ejecutivos.",
   },
 ];
 
@@ -85,7 +85,7 @@ export function AdminAssistant() {
             type="text"
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Pregunta por ingresos, reservas o estado de canchas"
+            placeholder="Pregunta por usuarios, pagos, reportes, canchas o eventos"
             disabled={loading}
           />
           <button type="submit" disabled={!canSend} aria-label="Enviar mensaje">

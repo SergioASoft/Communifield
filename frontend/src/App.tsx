@@ -8,6 +8,7 @@ import CanchasPage from "./pages/CanchasPage";
 import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
 import { UserManagement } from "./components/users/UserManagement";
+import { ManagerAssistantLauncher } from "./components/ManagerAssistantLauncher";
 
 export default function App() {
   return (
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/perfil" element={<ProfilePage />} />
         <Route path="/usuarios" element={<UserManagement />} />
       </Routes>
+      <ManagerAssistantLauncher />
     </BrowserRouter>
   );
 }
