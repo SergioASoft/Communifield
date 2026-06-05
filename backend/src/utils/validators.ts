@@ -1,24 +1,29 @@
 import { z } from "zod";
 
 const strongPassword = z.string()
-  .min(8, "La contraseña debe tener mínimo 8 caracteres")
-  .regex(/[A-Z]/, "La contraseña debe tener una mayúscula")
-  .regex(/[a-z]/, "La contraseña debe tener una minúscula")
-  .regex(/[0-9]/, "La contraseña debe tener un número")
-  .regex(/[^A-Za-z0-9]/, "La contraseña debe tener un símbolo");
+  .min(8, "La contrasena debe tener minimo 8 caracteres")
+  .regex(/[A-Z]/, "La contrasena debe tener una mayuscula")
+  .regex(/[a-z]/, "La contrasena debe tener una minuscula")
+  .regex(/[0-9]/, "La contrasena debe tener un numero")
+  .regex(/[^A-Za-z0-9]/, "La contrasena debe tener un simbolo");
 
 export const registerSchema = z.object({
   name: z.string().min(2, "El nombre es obligatorio").max(80),
-  username: z.string().min(3, "El usuario debe tener mínimo 3 caracteres").max(30)
-    .regex(/^[a-zA-Z0-9_]+$/, "El usuario solo puede tener letras, números y guion bajo"),
-  email: z.string().email("Correo electrónico inválido"),
-  phone: z.string().min(7, "Teléfono inválido").max(20).regex(/^[0-9+\s-]+$/, "Teléfono inválido"),
+  email: z.string().email("Correo electronico invalido"),
+  phone: z.string().min(7, "Telefono invalido").max(20).regex(/^[0-9+\s-]+$/, "Telefono invalido"),
   password: strongPassword,
-  role: z.enum(["gestor", "player"]).default("gestor"),
+  type: z.enum(["organizer", "player"]),
+  bio: z.string().optional(),
+  photo: z.string().optional(),
+  photoFile: z.object({
+    name: z.string(),
+    type: z.string(),
+    dataUrl: z.string(),
+  }).optional(),
+  position: z.string().max(100).optional(),
 });
 
 export const loginSchema = z.object({
-  email: z.string().email("Correo electrónico inválido"),
-  password: z.string().min(1, "La contraseña es obligatoria"),
-  role: z.enum(["gestor", "player"]).optional(),
+  email: z.string().email("Correo electronico invalido"),
+  password: z.string().min(1, "La contrasena es obligatoria"),
 });

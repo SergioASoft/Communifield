@@ -1,102 +1,154 @@
 import { Request, Response } from "express";
-import { ResultSetHeader, RowDataPacket } from "mysql2";
+import { RowDataPacket } from "mysql2";
 import { pool } from "../config/db";
 import { env } from "../config/env";
-import { comparePassword, hashPassword } from "../utils/password";
+import { comparePassword } from "../utils/password";
 import { signToken } from "../utils/jwt";
 import { loginSchema, registerSchema } from "../utils/validators";
+import { UserType } from "../models/user";
+import { UpdateUserDTO } from "../dtos/UpdateUserDTO";
+import { UserService } from "../services/userService";
 
 type UserRow = RowDataPacket & {
-  id: number;
+  user_id: number;
+  id_usuario: number;
   name: string;
-  username: string;
+  nombre: string;
   email: string;
-  phone: string;
-  password_hash: string | null;
-  role: "gestor" | "player";
-  failed_attempts: number;
-  blocked_until: Date | null;
+  phone: string | null;
+  tel: string | null;
+  bio: string | null;
+  biografia: string | null;
+  photo: string | null;
+  foto: string | null;
+  position: string | null;
+  posicion: string | null;
+  password_hash: string;
+  type: UserType;
+  Tipo: UserType;
+  fk_id_evento: number | null;
 };
 
+const userColumns = `
+  id_usuario AS user_id,
+  id_usuario,
+  nombre AS name,
+  nombre,
+  email,
+  \`contraseña_hash\` AS password_hash,
+  \`contraseña_hash\`,
+  tel AS phone,
+  tel,
+  biografia AS bio,
+  biografia,
+  foto AS photo,
+  foto,
+  posicion AS position,
+  posicion,
+  Tipo AS type,
+  Tipo,
+  fk_id_evento
+`;
+
+const roleFromType = (type: UserType) => {
+  if (type === "organizer") return "gestor";
+  return type;
+};
+
+const redirectFromType = (type: UserType) => (type === "admin" ? "/usuarios" : "/canchas");
+
 const publicUser = (user: UserRow) => ({
-  id: user.id,
+  id: user.user_id,
+  user_id: user.user_id,
+  id_usuario: user.id_usuario,
   name: user.name,
-  username: user.username,
+  nombre: user.nombre,
   email: user.email,
   phone: user.phone,
-  role: user.role,
+  tel: user.tel,
+  bio: user.bio,
+  biografia: user.biografia,
+  photo: user.photo,
+  foto: user.foto,
+  position: user.position,
+  posicion: user.posicion,
+  type: user.type,
+  Tipo: user.Tipo,
+  fk_id_evento: user.fk_id_evento,
+  role: roleFromType(user.type),
+  redirectTo: redirectFromType(user.type),
 });
 
 export async function register(req: Request, res: Response) {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten().fieldErrors });
+    return res.status(400).json({ message: "Datos invalidos", errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { name, username, email, phone, password, role } = parsed.data;
+  const { name, email, phone, password, type, bio, photo, position, photoFile } = parsed.data;
   const [exists] = await pool.query<UserRow[]>(
-    "SELECT id, email, username, phone FROM users WHERE email = ? OR username = ? OR phone = ? LIMIT 1",
-    [email, username, phone]
+    "SELECT id_usuario AS user_id, email, tel AS phone FROM USUARIO WHERE email = ? LIMIT 1",
+    [email]
   );
 
   if (exists.length) {
-    const found = exists[0];
     const errors: Record<string, string[]> = {};
-    if (found.email === email) errors.email = ["Este correo ya está registrado"];
-    if (found.username === username) errors.username = ["Este nombre de usuario ya existe"];
-    if (found.phone === phone) errors.phone = ["Este teléfono ya está registrado"];
+    errors.email = ["Este correo ya esta registrado"];
     return res.status(409).json({ message: "Usuario duplicado", errors });
   }
 
-  const passwordHash = await hashPassword(password);
-  const [result] = await pool.query<ResultSetHeader>(
-    "INSERT INTO users (name, username, email, phone, password_hash, role, provider, email_verified) VALUES (?, ?, ?, ?, ?, ?, 'credentials', 1)",
-    [name, username, email, phone, passwordHash, role]
-  );
+  const newUser = await UserService.createUser({ name, email, phone, password, type, bio, photo, photoFile, position });
 
-  return res.status(201).json({ message: "Registro exitoso", userId: result.insertId });
+  return res.status(201).json({ message: "Registro exitoso", userId: newUser?.user_id });
 }
 
 export async function login(req: Request, res: Response) {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ message: "Datos inválidos", errors: parsed.error.flatten().fieldErrors });
+    return res.status(400).json({ message: "Datos invalidos", errors: parsed.error.flatten().fieldErrors });
   }
 
-  const { email, password, role } = parsed.data;
-  const [rows] = await pool.query<UserRow[]>("SELECT * FROM users WHERE email = ? LIMIT 1", [email]);
+  const { email, password } = parsed.data;
+  const [rows] = await pool.query<UserRow[]>(`SELECT ${userColumns} FROM USUARIO WHERE email = ? LIMIT 1`, [email]);
   const user = rows[0];
-  if (!user || !user.password_hash) return res.status(401).json({ message: "Correo o contraseña incorrectos" });
-
-  if (user.blocked_until && new Date(user.blocked_until).getTime() > Date.now()) {
-    return res.status(423).json({ message: `Cuenta bloqueada por intentos fallidos. Intenta después de ${new Date(user.blocked_until).toLocaleString()}` });
-  }
-
-  if (role && user.role !== role) {
-    return res.status(403).json({ message: "El usuario no corresponde al tipo de acceso seleccionado" });
-  }
+  if (!user || !user.password_hash) return res.status(401).json({ message: "Correo o contrasena incorrectos" });
 
   const validPassword = await comparePassword(password, user.password_hash);
   if (!validPassword) {
-    const attempts = user.failed_attempts + 1;
-    const shouldBlock = attempts >= env.loginMaxAttempts;
-    const blockedUntil = shouldBlock ? new Date(Date.now() + env.loginBlockMinutes * 60 * 1000) : null;
-    await pool.query("UPDATE users SET failed_attempts = ?, blocked_until = ? WHERE id = ?", [shouldBlock ? 0 : attempts, blockedUntil, user.id]);
-    return res.status(401).json({
-      message: shouldBlock
-        ? `Cuenta bloqueada por ${env.loginBlockMinutes} minutos por intentos fallidos`
-        : `Contraseña incorrecta. Intentos restantes: ${env.loginMaxAttempts - attempts}`,
-    });
+    return res.status(401).json({ message: "Correo o contraseña incorrectos" });
   }
 
-  await pool.query("UPDATE users SET failed_attempts = 0, blocked_until = NULL, last_login_at = NOW() WHERE id = ?", [user.id]);
-  const token = signToken({ id: user.id, email: user.email, role: user.role });
-  return res.json({ message: "Inicio de sesión exitoso", token, user: publicUser(user), expiresIn: env.jwtExpiresIn });
+  const tokenUser = { id: user.user_id, user_id: user.user_id, email: user.email, type: user.type, role: roleFromType(user.type) };
+  const token = signToken(tokenUser);
+  const publicData = publicUser(user);
+
+  return res.json({
+    message: "Inicio de sesion exitoso",
+    token,
+    user: publicData,
+    redirectTo: publicData.redirectTo,
+    expiresIn: env.jwtExpiresIn,
+  });
 }
 
 export async function me(req: Request, res: Response) {
   const authUser = (req as any).user;
-  const [rows] = await pool.query<UserRow[]>("SELECT * FROM users WHERE id = ? LIMIT 1", [authUser.id]);
+  const [rows] = await pool.query<UserRow[]>(`SELECT ${userColumns} FROM USUARIO WHERE id_usuario = ? LIMIT 1`, [authUser.id]);
   if (!rows[0]) return res.status(404).json({ message: "Usuario no encontrado" });
   res.json({ user: publicUser(rows[0]) });
+}
+
+export async function updateMe(req: Request, res: Response) {
+  const authUser = (req as any).user;
+  const data: UpdateUserDTO = req.body;
+  const updatedUser = await UserService.updateUser(authUser.id, data);
+
+  if (!updatedUser) return res.status(404).json({ message: "Usuario no encontrado" });
+  const user = updatedUser as any;
+  const enrichedUser = {
+    ...user,
+    role: roleFromType(user.type),
+    redirectTo: redirectFromType(user.type),
+  };
+  res.json({ message: "Perfil actualizado", user: enrichedUser, data: enrichedUser });
 }

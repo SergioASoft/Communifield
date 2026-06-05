@@ -1,22 +1,34 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import { useState } from 'react';
-import './styles/globals.css';
-import HomePage from './pages/HomePage';
-import CanchaPage from './pages/CanchaPage';
+import HomePage from "./pages/HomePage";
+import "./styles/globals.css";
 
-type Pagina = 'home' | 'cancha';
+import CanchaPage from "./pages/CanchaPage";
+import CanchasPage from "./pages/CanchasPage";
+import ProfilePage from "./pages/ProfilePage";
+import LoginPage from "./pages/LoginPage";
+import { UserManagement } from "./components/users/UserManagement";
+import { ManagerAssistantLauncher } from "./components/ManagerAssistantLauncher";
 
 export default function App() {
-  
-  const [pagina, setPagina] = useState<Pagina>('home');
-
-  
-  (window as Record<string, unknown>).__navegar = setPagina;
-
   return (
-    <>
-      {pagina === 'home'   && <HomePage />}
-      {pagina === 'cancha' && <CanchaPage />}
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route path="/canchas" element={<CanchasPage />} />
+
+        <Route
+          path="/canchas/:id"
+          element={<CanchaPage />}
+        />
+
+        <Route path="/perfil" element={<ProfilePage />} />
+        <Route path="/usuarios" element={<UserManagement />} />
+      </Routes>
+      <ManagerAssistantLauncher />
+    </BrowserRouter>
   );
 }

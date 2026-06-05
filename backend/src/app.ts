@@ -6,13 +6,15 @@ import { env } from "./config/env";
 import { testDatabaseConnection } from "./config/db";
 import { authRouter } from "./routes/auth.routes";
 import { userRouter } from "./routes/user.routes";
+import { assistantRouter } from "./routes/assistant.routes";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
+import canchaRouter from "./routes/cancharoutes";
 
 export const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "6mb" }));
 app.use(rateLimit({
   windowMs: env.rateLimitWindowMinutes * 60 * 1000,
   max: env.rateLimitMax,
@@ -37,6 +39,9 @@ app.use("/users", userRouter);
 // Alias para proyectos que ya usaban /api
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
+app.use("/api/assistant", assistantRouter);
+
+app.use("/api/canchas", canchaRouter);
 
 app.use(notFound);
 app.use(errorHandler);
