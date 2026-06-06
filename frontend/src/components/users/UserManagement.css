@@ -74,6 +74,12 @@
   color: #1d1d1d;
 }
 
+.topbar-title {
+  color: #253021;
+  font-size: 18px;
+  font-weight: 800;
+}
+
 .admin-profile {
   display: flex;
   align-items: center;
@@ -340,6 +346,127 @@
 .end-message {
   color: #667064;
   font-size: 15px;
+}
+
+.assistant-panel {
+  margin-top: 32px;
+}
+
+.assistant-window {
+  background: #ffffff;
+  border: 1px solid #e1e5dc;
+  border-radius: 8px;
+  min-height: 620px;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  overflow: hidden;
+}
+
+.assistant-thread {
+  padding: 24px;
+  overflow-y: auto;
+  max-height: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.assistant-message {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  max-width: min(780px, 100%);
+}
+
+.assistant-message.user {
+  align-self: flex-end;
+}
+
+.assistant-message.assistant {
+  align-self: flex-start;
+}
+
+.assistant-message-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #eef2ea;
+  color: #117a37;
+}
+
+.assistant-message.user .assistant-message-icon {
+  background: #d7f226;
+  color: #17210f;
+}
+
+.assistant-message p {
+  margin: 0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #f5f6f4;
+  color: #263023;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.assistant-message.user p {
+  background: #117a37;
+  color: #ffffff;
+}
+
+.assistant-error {
+  margin: 0 24px 14px;
+  color: #a82828;
+  font-weight: 700;
+}
+
+.assistant-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  gap: 12px;
+  padding: 18px;
+  border-top: 1px solid #e8ece3;
+  background: #fbfcfa;
+}
+
+.assistant-composer input {
+  min-width: 0;
+  border: 1px solid #d9dfd4;
+  border-radius: 8px;
+  padding: 0 16px;
+  color: #1d1d1d;
+  font-size: 15px;
+}
+
+.assistant-composer button {
+  width: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 8px;
+  background: #117a37;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.assistant-composer button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.spin-icon {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 1. Volvemos el contenedor un punto de referencia relativo */

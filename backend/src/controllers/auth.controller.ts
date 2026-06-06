@@ -115,7 +115,7 @@ export async function login(req: Request, res: Response) {
 
   const validPassword = await comparePassword(password, user.password_hash);
   if (!validPassword) {
-    return res.status(401).json({ message: "Correo o contrasena incorrectos" });
+    return res.status(401).json({ message: "Correo o contraseña incorrectos" });
   }
 
   const tokenUser = { id: user.user_id, user_id: user.user_id, email: user.email, type: user.type, role: roleFromType(user.type) };

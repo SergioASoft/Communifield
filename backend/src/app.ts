@@ -6,6 +6,7 @@ import { env } from "./config/env";
 import { testDatabaseConnection } from "./config/db";
 import { authRouter } from "./routes/auth.routes";
 import { userRouter } from "./routes/user.routes";
+import { assistantRouter } from "./routes/assistant.routes";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
 import canchaRouter from "./routes/cancharoutes";
 
@@ -38,6 +39,7 @@ app.use("/users", userRouter);
 // Alias para proyectos que ya usaban /api
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
+app.use("/api/assistant", assistantRouter);
 
 app.use("/api/canchas", canchaRouter);
 

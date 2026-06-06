@@ -4,6 +4,7 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "agent": "python agent/server.py",
     "build": "tsc",
     "start": "node dist/server.js"
   },
