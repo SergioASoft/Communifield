@@ -1,4 +1,4 @@
-CREATE schema communifield;
+CREATE DATABASE communifield;
 USE communifield;
 
 -- =====================================================================

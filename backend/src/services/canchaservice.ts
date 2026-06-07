@@ -3,7 +3,10 @@ import { pool } from "../config/db";
 export class CanchaService {
   static async getAll() {
     const [rows] = await pool.query(`
-      SELECT * FROM space
+      SELECT *
+      FROM ESPACIO
+      WHERE estado = 'activo'
+      ORDER BY id_espacio DESC
     `);
 
     return rows;
@@ -12,8 +15,10 @@ export class CanchaService {
   static async getById(id: number) {
     const [rows]: any = await pool.query(
       `
-      SELECT * FROM space
-      WHERE space_id = ?
+      SELECT *
+      FROM ESPACIO
+      WHERE id_espacio = ?
+      LIMIT 1
       `,
       [id]
     );

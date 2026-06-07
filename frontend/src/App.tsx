@@ -10,6 +10,7 @@ import LoginPage from "./pages/LoginPage";
 import { UserManagement } from "./components/users/UserManagement";
 import { ManagerAssistantLauncher } from "./components/ManagerAssistantLauncher";
 
+
 export default function App() {
   return (
     <BrowserRouter>
