@@ -2,6 +2,7 @@ import { app } from "./app";
 import { env } from "./config/env";
 import { testDatabaseConnection } from "./config/db";
 
+
 app.listen(env.port, async () => {
   console.log(`Servidor corriendo en http://localhost:${env.port}`);
   try {

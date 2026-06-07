@@ -128,9 +128,12 @@ const ProfilePage = () => {
     <main className="profile-page">
       <section className="profile-hero">
         <div className="profile-container">
-          <span className="profile-logo">
+          <button className="profile-logo profile-logo-button" type="button" onClick={() => navigate("/")}>
             CommuniField <span className="profile-logo-dot">•</span>
-          </span>
+          </button>
+          <button className="profile-back-button" type="button" onClick={() => navigate(-1)}>
+            ← Retroceder
+          </button>
 
           <div className="hero-content">
             <div className="avatar-wrapper">

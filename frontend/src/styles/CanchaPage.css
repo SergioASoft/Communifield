@@ -510,3 +510,30 @@
   .cancha-nombre { font-size: 36px; }
   .horarios-semana { display: grid; grid-template-columns: repeat(4, 1fr); }
 }
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  border: 2px solid var(--border);
+  background: var(--white);
+  color: var(--green);
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 18px;
+  border-radius: 9px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.22s ease;
+}
+
+.back-button:hover {
+  border-color: var(--green);
+  background: var(--green-pale);
+}
+
+.cancha-back-button {
+  margin-top: 24px;
+}

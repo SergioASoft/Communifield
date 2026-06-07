@@ -92,7 +92,8 @@ export default function LoginPage() {
 
   return <main className="page">
     <section className="auth-card">
-      <div className="brand">CommuniField <span /></div>
+      <button className="brand brand-button" type="button" onClick={() => navigate("/")}>CommuniField <span /></button>
+      <button className="back-button auth-back-button" type="button" onClick={() => navigate(-1)}>← Retroceder</button>
       <h1>Vive el futbol como <strong>nunca</strong></h1>
       <p className="subtitle">Ingresa para gestionar tu cancha o conectarte con toda la comunidad</p>
 
