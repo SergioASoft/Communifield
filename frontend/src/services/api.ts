@@ -62,5 +62,11 @@ export const api = {
   login: (body: { email: string; password: string }) =>
     request<{ token: string; user: any; message: string; redirectTo: string }>("/auth/login", { method: "POST", body: JSON.stringify(body) }),
   register: (body: { name: string; email: string; phone: string; password: string; type: "organizer" | "player" }) =>
-    request<{ message: string; userId: number }>("/users/register", { method: "POST", body: JSON.stringify(body) }),
+    request<{ message: string; userId: number}>("/auth/register", { method: "POST", body: JSON.stringify(body) }),
+  forgotPassword: (body: { email: string }) =>
+    request<{ message: string }>("/auth/forgot-password", { method: "POST", body: JSON.stringify(body) }),
+  resetPassword: (body: { token: string; password: string }) =>
+    request<{ message: string }>("/auth/reset-password", { method: "POST", body: JSON.stringify(body) }),
+  verifyAccount: (token: string) =>
+    request<{ message: string }>(`/auth/verify/${token}`, { method: "GET",}),
 };

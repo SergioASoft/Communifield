@@ -8,7 +8,7 @@ export const env = {
     host: process.env.DB_HOST || "127.0.0.1",
     port: Number(process.env.DB_PORT || 3306),
     user: process.env.DB_USER || "root",
-    password: process.env.DB_PASSWORD || "root",
+    password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || "communifield",
   },
   jwtSecret: process.env.JWT_SECRET || "dev_secret_change_me",
@@ -18,4 +18,14 @@ export const env = {
   loginBlockMinutes: Number(process.env.LOGIN_BLOCK_MINUTES || 15),
   rateLimitWindowMinutes: Number(process.env.RATE_LIMIT_WINDOW_MINUTES || 15),
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 100),
+  email: {
+    user: process.env.EMAIL_USER || "communifield@gmail.com",
+    pass: process.env.EMAIL_PASS || "nzmd gefu belm jiwt",
+  },
+  smtpHost: process.env.SMTP_HOST || "smtp.gmail.com",
+  smtpPort: process.env.SMTP_PORT || "587",
+  smtpSecure: process.env.SMTP_SECURE || "false",
+  smtpUser: process.env.SMTP_USER || "communifield@gmail.com",
+  smtpPass: process.env.SMTP_PASS || "nzmd gefu belm jiwt",
+  smtpFrom: process.env.SMTP_FROM || "CommuniField <communifield@gmail.com>",
 };

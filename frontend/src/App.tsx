@@ -7,6 +7,9 @@ import CanchaPage from "./pages/CanchaPage";
 import CanchasPage from "./pages/CanchasPage";
 import ProfilePage from "./pages/ProfilePage";
 import LoginPage from "./pages/LoginPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import VerifyAccountPage from "./pages/VerifyAccountPage";
 import { UserManagement } from "./components/users/UserManagement";
 
 export default function App() {
@@ -16,6 +19,9 @@ export default function App() {
         <Route path="/" element={<HomePage />} />
 
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/verify/:token" element={<VerifyAccountPage />} />
 
         <Route path="/canchas" element={<CanchasPage />} />
 
