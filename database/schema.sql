@@ -1,4 +1,4 @@
-CREATE DATABASE communifield;
+CREATE DATABASE IF NOT EXISTS communifield;
 USE communifield;
 
 -- =====================================================================
@@ -12,23 +12,13 @@ CREATE TABLE USUARIO (
   token_verificacion VARCHAR(255) NULL,
   reset_token VARCHAR(255) NULL,
   reset_token_expira DATETIME NULL,
-  contraseña_hash VARCHAR(255) NOT NULL, 
+  contraseña_hash VARCHAR(255) NOT NULL,
   tel VARCHAR(20),
   biografia TEXT,
   Tipo ENUM('organizer', 'player', 'admin') NOT NULL,
   foto LONGTEXT,
   posicion VARCHAR(100),
   fk_id_evento INT
-    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    contraseña_hash VARCHAR(255) NOT NULL,
-    tel VARCHAR(20),
-    biografia TEXT,
-    Tipo ENUM('organizer', 'player', 'admin') NOT NULL,
-    foto LONGTEXT,
-    posicion VARCHAR(100),
-    fk_id_evento INT
 );
 
 -- =====================================================================
@@ -120,6 +110,7 @@ CREATE INDEX idx_evento_espacio_fechas ON EVENTO(fk_id_espacio, fecha_inic, fech
 -- =====================================================================
 DELIMITER $$
 
+-- 1️⃣ Validar que la fecha de inicio no sea mayor o igual a la de fin
 CREATE TRIGGER validar_fechas_evento
 BEFORE INSERT ON EVENTO
 FOR EACH ROW
@@ -129,6 +120,7 @@ BEGIN
     END IF;
 END$$
 
+-- 2️⃣ Evitar el solapamiento de horarios al insertar un evento
 CREATE TRIGGER prevenir_solapamiento_evento
 BEFORE INSERT ON EVENTO
 FOR EACH ROW
@@ -146,6 +138,7 @@ BEGIN
     END IF;
 END$$
 
+-- 3️⃣ Validar estado del espacio y vigencia de fechas
 CREATE TRIGGER validar_disponibilidad_espacio
 BEFORE INSERT ON EVENTO
 FOR EACH ROW
@@ -166,6 +159,7 @@ BEGIN
     END IF;
 END$$
 
+-- 4️⃣ Evitar solapamiento de horarios al actualizar (UPDATE) un evento existente
 CREATE TRIGGER prevenir_solapamiento_evento_update
 BEFORE UPDATE ON EVENTO
 FOR EACH ROW
@@ -192,25 +186,62 @@ DELIMITER ;
 -- =====================================================================
 -- 🧪 8. POBLACIÓN DE DATOS DE PRUEBA (SEED DATA)
 -- =====================================================================
+-- APAGAR LA VERIFICACIÓN DE LLAVES FORÁNEAS PARA LA INSERCIÓN INICIAL
 SET FOREIGN_KEY_CHECKS = 0;
 
--- Canchas con vigencia amplia para que el trigger las valide correctamente en 2026
+-- Canchas con vigencia amplia para correcto funcionamiento de los triggers
 INSERT INTO ESPACIO (id_espacio, nombre, tipo, ubicacion, superficie, precio_hora, estado, disponible_hoy, fecha_activacion, fecha_desact) VALUES 
 (1, 'Maracaná 5', 'Fútbol 5', 'Av. Principal #450', 'Sintética Premium', 50.00, 'activo', TRUE, '2025-01-01 00:00:00', '2030-12-31 23:59:59'),
 (2, 'Camp Nou 7', 'Fútbol 7', 'Av. Principal #450', 'Césped Natural', 70.00, 'activo', TRUE, '2025-01-01 00:00:00', '2030-12-31 23:59:59');
 
-INSERT INTO USUARIO (id_usuario, nombre, email, contraseña_hash, Tipo, posicion) VALUES
-(1, 'Administrador Central', 'admin@ejemplo.com', '$2a$10$JascO//eTcWAb7MMTNJgRO9qVmD6p6KFd6XavR4hTbGJXs/FSKHTm', 'admin', 'Director Técnico'),
-(2, 'Carlos Tévez', 'carlos@ejemplo.com', '$2a$10$X...', 'player', 'Delantero'),
-(3, 'Juan Román', 'roman@ejemplo.com', '$2a$10$X...', 'organizer', 'Mediocampista');
+-- Inserción segura del Administrador (Previene duplicidad de Primary Key en ejecuciones repetidas)
+INSERT INTO USUARIO (
+    id_usuario,
+    nombre, 
+    email, 
+    contraseña_hash, 
+    tel, 
+    biografia, 
+    Tipo, 
+    foto, 
+    posicion, 
+    fk_id_evento
+) VALUES (
+    1,
+    'Administrador Central',
+    'admin@ejemplo.com',
+    '$2a$10$JascO//eTcWAb7MMTNJgRO9qVmD6p6KFd6XavR4hTbGJXs/FSKHTm', -- 'Admin123*' en BCrypt
+    '+123456789',
+    'Cuenta de administrador para pruebas del sistema.',
+    'admin',
+    'perfil_admin.png',
+    'Director Técnico',
+    NULL
+) ON DUPLICATE KEY UPDATE
+    `contraseña_hash` = VALUES(`contraseña_hash`),
+    nombre = VALUES(nombre),
+    tel = VALUES(tel),
+    biografia = VALUES(biografia),
+    Tipo = VALUES(Tipo),
+    foto = VALUES(foto),
+    posicion = VALUES(posicion);
 
--- LUNES (Baja demanda)
+-- Usuarios de prueba adicionales
+INSERT INTO USUARIO (id_usuario, nombre, email, contraseña_hash, Tipo, posicion) VALUES
+(2, 'Carlos Tévez', 'carlos@ejemplo.com', '$2a$10$X...', 'player', 'Delantero'),
+(3, 'Juan Román', 'roman@ejemplo.com', '$2a$10$X...', 'organizer', 'Mediocampista'),
+(4, 'Diego Armando', 'diego@ejemplo.com', '$2a$10$X...', 'player', 'Enganche');
+
+-- Histórico Completo de EVENTOS y PAGOS
+
+-- LUNES
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (10, 1, 50.00, '2026-05-04 18:00:00', '2026-05-04 19:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (10, 50.00, 'tarjeta', 'pagado', '2026-05-04 17:30:00', 10);
+
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (11, 1, 50.00, '2026-05-11 19:00:00', '2026-05-11 20:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (11, 50.00, 'efectivo', 'pagado', '2026-05-11 19:00:00', 11);
 
--- MARTES (Valle absoluto)
+-- MARTES
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (20, 1, 50.00, '2026-05-05 20:00:00', '2026-05-05 21:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (20, 50.00, 'transferencia', 'pagado', '2026-05-05 19:45:00', 20);
 
@@ -218,21 +249,33 @@ INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALU
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (30, 1, 50.00, '2026-05-06 19:00:00', '2026-05-06 20:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (30, 50.00, 'tarjeta', 'pagado', '2026-05-06 18:15:00', 30);
 
+INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (31, 1, 50.00, '2026-05-13 21:00:00', '2026-05-13 22:00:00', 10);
+INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (31, 50.00, 'tarjeta', 'pagado', '2026-05-13 20:50:00', 31);
+
 -- JUEVES
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (40, 1, 50.00, '2026-05-07 18:00:00', '2026-05-07 20:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (40, 100.00, 'transferencia', 'pagado', '2026-05-07 17:00:00', 40);
 
--- VIERNES (Empieza el pico)
+INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (41, 1, 50.00, '2026-05-14 20:00:00', '2026-05-14 22:00:00', 10);
+INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (41, 100.00, 'efectivo', 'pagado', '2026-05-14 20:00:00', 41);
+
+-- VIERNES
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (50, 1, 55.00, '2026-05-01 18:00:00', '2026-05-01 20:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (50, 110.00, 'tarjeta', 'pagado', '2026-05-01 15:20:00', 50);
+
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (51, 1, 55.00, '2026-05-08 20:00:00', '2026-05-08 22:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (51, 110.00, 'transferencia', 'pagado', '2026-05-08 19:10:00', 51);
 
--- SÁBADO (Pico absoluto de utilidad)
+INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (52, 1, 55.00, '2026-05-15 22:00:00', '2026-05-15 23:00:00', 10);
+INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (52, 55.00, 'tarjeta', 'pagado', '2026-05-15 21:40:00', 52);
+
+-- SÁBADO
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (60, 1, 60.00, '2026-05-02 14:00:00', '2026-05-02 16:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (60, 120.00, 'tarjeta', 'pagado', '2026-05-02 11:00:00', 60);
+
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (61, 1, 65.00, '2026-05-02 17:00:00', '2026-05-02 19:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (61, 130.00, 'tarjeta', 'pagado', '2026-05-02 16:45:00', 61);
+
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (62, 1, 65.00, '2026-05-09 19:00:00', '2026-05-09 21:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (62, 130.00, 'transferencia', 'pagado', '2026-05-08 22:00:00', 62);
 
@@ -240,17 +283,27 @@ INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALU
 INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (70, 1, 50.00, '2026-05-03 10:00:00', '2026-05-03 12:00:00', 10);
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (70, 100.00, 'efectivo', 'pagado', '2026-05-03 12:00:00', 70);
 
--- Mapear llaves circulares
+INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores) VALUES (71, 1, 50.00, '2026-05-10 16:00:00', '2026-05-10 18:00:00', 10);
+INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (71, 100.00, 'tarjeta', 'pagado', '2026-05-10 15:30:00', 71);
+
+-- =====================================================================
+-- 🔄 9. ACTUALIZAR LAS RELACIONES CRUZADAS (LLAVES CIRCULARES)
+-- =====================================================================
 UPDATE EVENTO SET id_pago = 10 WHERE id_evento = 10;
 UPDATE EVENTO SET id_pago = 11 WHERE id_evento = 11;
 UPDATE EVENTO SET id_pago = 20 WHERE id_evento = 20;
 UPDATE EVENTO SET id_pago = 30 WHERE id_evento = 30;
+UPDATE EVENTO SET id_pago = 31 WHERE id_evento = 31;
 UPDATE EVENTO SET id_pago = 40 WHERE id_evento = 40;
+UPDATE EVENTO SET id_pago = 41 WHERE id_evento = 41;
 UPDATE EVENTO SET id_pago = 50 WHERE id_evento = 50;
 UPDATE EVENTO SET id_pago = 51 WHERE id_evento = 51;
+UPDATE EVENTO SET id_pago = 52 WHERE id_evento = 52;
 UPDATE EVENTO SET id_pago = 60 WHERE id_evento = 60;
 UPDATE EVENTO SET id_pago = 61 WHERE id_evento = 61;
 UPDATE EVENTO SET id_pago = 62 WHERE id_evento = 62;
 UPDATE EVENTO SET id_pago = 70 WHERE id_evento = 70;
+UPDATE EVENTO SET id_pago = 71 WHERE id_evento = 71;
 
+-- REACTIVAR LA VERIFICACIÓN DE LLAVES FORÁNEAS
 SET FOREIGN_KEY_CHECKS = 1;

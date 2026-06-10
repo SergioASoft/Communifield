@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import type { ApiError } from "../services/api";
 import "../styles/auth.css";
-import HomePage from "./HomePage";
 
 type Mode = "login" | "register";
 type RegisterType = "organizer" | "player";
