@@ -462,3 +462,85 @@ body {
   font-weight: 800;
   flex-shrink: 0;
 }
+.friend-delete {
+  border: none;
+  background: #ffe8e8;
+  color: #c0392b;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.friend-delete:hover {
+  background: #c0392b;
+  color: var(--white);
+}
+.friend-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 38, 14, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.friend-modal {
+  width: 100%;
+  max-width: 360px;
+  background: white;
+  border-radius: 22px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(14, 38, 14, 0.25);
+  text-align: center;
+}
+
+.friend-modal h3 {
+  margin: 0 0 10px;
+  color: #0e260e;
+  font-size: 22px;
+}
+
+.friend-modal p {
+  margin: 0;
+  color: #3d5c3d;
+  font-size: 14px;
+}
+
+.friend-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.friend-modal-cancel,
+.friend-modal-delete {
+  flex: 1;
+  border: none;
+  border-radius: 999px;
+  padding: 11px 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.friend-modal-cancel {
+  background: #edf7ed;
+  color: #008a00;
+}
+
+.friend-modal-delete {
+  background: #c0392b;
+  color: white;
+}
+
+.friend-modal-cancel:hover {
+  background: #dff1df;
+}
+
+.friend-modal-delete:hover {
+  background: #a93226;
+}

@@ -492,7 +492,22 @@ export const UserManagement: React.FC = () => {
             </section>
 
             {error && <p className="error-message">{error}</p>}
-
+{filteredUsers.length === 0 ? (
+  <p className="end-message">
+    No se encontraron usuarios con esa búsqueda.
+  </p>
+) : (
+  <section className="users-grid">
+    {filteredUsers.map((user) => (
+      <UserCard
+        key={user.user_id}
+        user={user}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+    ))}
+  </section>
+)}
             <section className="users-grid">
               {filteredUsers.map((user) => (
                 <UserCard

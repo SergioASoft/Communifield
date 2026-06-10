@@ -67,8 +67,20 @@ export default function CanchasPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setUsuario(getUsuarioSesion());
-  }, []);
+  const raw = localStorage.getItem("communifield_user");
+
+  if (raw) {
+    const user = JSON.parse(raw);
+    const tipoUsuario = user.type || user.Tipo;
+
+    if (tipoUsuario === "organizer") {
+      navigate("/gestor/mis-canchas", { replace: true });
+      return;
+    }
+  }
+
+  setUsuario(getUsuarioSesion());
+}, [navigate]);
 
   useEffect(() => {
     cargarCanchas();
@@ -87,8 +99,15 @@ export default function CanchasPage() {
 
       const data = await res.json();
 
-      setCanchas(data);
-      setCanchasFiltradas(data);
+      const canchasProcesadas = data.map((cancha: any) => ({
+  ...cancha,
+  disponible_hoy:
+    cancha.estado === "activo" &&
+    Boolean(cancha.disponible_hoy),
+}));
+
+setCanchas(canchasProcesadas);
+setCanchasFiltradas(canchasProcesadas);
     } catch (err) {
       console.error(err);
       setError("No se pudieron cargar las canchas. Revisa el backend o la base de datos.");
@@ -356,10 +375,11 @@ export default function CanchasPage() {
                       <span style={{ fontSize: 12, color: "#6e8f6e" }}> / hora</span>
                     </strong>
 
-                    {Boolean(cancha.disponible_hoy) ? (
+                    {cancha.estado === "activo" && Boolean(cancha.disponible_hoy) ? (
                       <span style={disponibleStyle}>Disponible</span>
-                    ) : (
-                      <span style={ocupadaStyle}>Ocupada</span>
+                    ) : cancha.estado === "mantenimiento" ? (
+                    <span style={ocupadaStyle}>Mantenimiento</span>) : (
+                    <span style={ocupadaStyle}>No disponible</span>
                     )}
                   </div>
                 </div>

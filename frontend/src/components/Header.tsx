@@ -57,6 +57,8 @@ function FriendsPanel({
   const [results, setResults] = useState<FriendUser[]>([]);
   const [search, setSearch] = useState("");
   const [loadingFriends, setLoadingFriends] = useState(false);
+  const [friendToDelete, setFriendToDelete] =
+  useState<FriendUser | null>(null);
 
   const userId = getUserId(usuario);
 
@@ -179,7 +181,22 @@ function FriendsPanel({
     .then(setResults)
     .catch(console.error);
 }
+function deleteFriend() {
+  if (!userId || !friendToDelete?.id_amistad) return;
 
+  fetch(`/api/friends/${friendToDelete.id_amistad}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ userId }),
+  })
+    .then(() => {
+      setFriendToDelete(null);
+      loadFriends();
+    })
+    .catch(console.error);
+}
   return (
     <>
       <div className="friends-panel-overlay" onClick={onClose} />
@@ -344,10 +361,47 @@ function FriendsPanel({
                   <p className="friend-name">{friend.nombre}</p>
                   <p className="friend-email">{friend.email}</p>
                 </div>
+                <button
+                type="button"
+                className="friend-delete"
+                onClick={() => setFriendToDelete(friend)}
+                >
+                  Eliminar
+                  </button>
               </div>
             ))
           )}
         </section>
+        {friendToDelete && (
+  <div className="friend-modal-overlay">
+    <div className="friend-modal">
+      <h3>Eliminar amigo</h3>
+
+      <p>
+        ¿Seguro que deseas eliminar a{" "}
+        <strong>{friendToDelete.nombre}</strong>?
+      </p>
+
+      <div className="friend-modal-actions">
+        <button
+          type="button"
+          className="friend-modal-cancel"
+          onClick={() => setFriendToDelete(null)}
+        >
+          Cancelar
+        </button>
+
+        <button
+          type="button"
+          className="friend-modal-delete"
+          onClick={deleteFriend}
+        >
+          Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </aside>
     </>
   );
@@ -457,9 +511,21 @@ export default function Header({ usuario }: HeaderProps) {
                 Mi perfil
               </a>
 
-              <a href="#" className="menu-item">
-                Mis reservas
-              </a>
+              {(() => {
+  const raw = localStorage.getItem("communifield_user");
+  const user = raw ? JSON.parse(raw) : null;
+  const tipoUsuario = user?.type || user?.Tipo;
+
+  return tipoUsuario === "organizer" ? (
+    <a href="/gestor/mis-canchas" className="menu-item">
+      Gestión de mis canchas
+    </a>
+  ) : (
+    <a href="#" className="menu-item">
+      Mis reservas
+    </a>
+  );
+})()}
 
               <button
                 type="button"

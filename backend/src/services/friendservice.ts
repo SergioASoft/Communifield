@@ -4,12 +4,13 @@ export class FriendService {
   static async getFriends(userId: number) {
     const [rows] = await pool.query(
       `
-      SELECT 
-        u.id_usuario,
-        u.nombre,
-        u.email,
-        u.foto,
-        u.Tipo
+   SELECT 
+      a.id_amistad,
+      u.id_usuario,
+      u.nombre,
+      u.email,
+      u.foto,
+      u.Tipo
       FROM AMISTAD a
       INNER JOIN USUARIO u
         ON u.id_usuario = CASE
@@ -177,4 +178,17 @@ export class FriendService {
 
     return result;
   }
+  static async deleteFriend(friendshipId: number, userId: number) {
+  const [result] = await pool.query(
+    `
+    DELETE FROM AMISTAD
+    WHERE id_amistad = ?
+    AND estado = 'aceptada'
+    AND (id_dueño = ? OR id_amigo = ?)
+    `,
+    [friendshipId, userId, userId]
+  );
+
+  return result;
+}
 }

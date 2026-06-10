@@ -1,5 +1,15 @@
 import { pool } from "../config/db";
 
+function toJson(value: any) {
+  if (!value) return null;
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  return JSON.stringify(value);
+}
+
 export class CanchaService {
   static async getAll() {
     const [rows] = await pool.query(`
@@ -25,50 +35,76 @@ export class CanchaService {
     return rows[0];
   }
 
+  static async getByOwner(ownerId: number) {
+    const [rows] = await pool.query(
+      `
+      SELECT *
+      FROM ESPACIO
+      WHERE fk_id_dueño = ?
+      ORDER BY id_espacio DESC
+      `,
+      [ownerId]
+    );
+
+    return rows;
+  }
+
   static async create(data: any) {
     const {
+      fk_id_dueño,
       nombre,
       tipo,
       ubicacion,
       distancia,
       superficie,
+      descripcion,
+      caracteristicas,
       precio_hora,
       rating,
       total_resenas,
       disponible_hoy,
       imagen_principal,
+      imagenes,
       estado,
     } = data;
 
     const [result]: any = await pool.query(
       `
       INSERT INTO ESPACIO (
+        fk_id_dueño,
         nombre,
         tipo,
         ubicacion,
         distancia,
         superficie,
+        descripcion,
+        caracteristicas,
         precio_hora,
         rating,
         total_resenas,
         disponible_hoy,
         imagen_principal,
+        imagenes,
         estado
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
+        fk_id_dueño,
         nombre,
         tipo,
         ubicacion,
-        distancia ?? null,
-        superficie ?? null,
-        precio_hora ?? 0,
-        rating ?? 0,
-        total_resenas ?? 0,
+        distancia || null,
+        superficie || null,
+        toJson(descripcion),
+        toJson(caracteristicas),
+        precio_hora || 0,
+        rating || 0,
+        total_resenas || 0,
         disponible_hoy ?? true,
-        imagen_principal ?? null,
-        estado ?? "activo",
+        imagen_principal || null,
+        toJson(imagenes),
+        estado || "activo",
       ]
     );
 
@@ -82,11 +118,14 @@ export class CanchaService {
       ubicacion,
       distancia,
       superficie,
+      descripcion,
+      caracteristicas,
       precio_hora,
       rating,
       total_resenas,
       disponible_hoy,
       imagen_principal,
+      imagenes,
       estado,
     } = data;
 
@@ -99,11 +138,14 @@ export class CanchaService {
         ubicacion = ?,
         distancia = ?,
         superficie = ?,
+        descripcion = ?,
+        caracteristicas = ?,
         precio_hora = ?,
         rating = ?,
         total_resenas = ?,
         disponible_hoy = ?,
         imagen_principal = ?,
+        imagenes = ?,
         estado = ?
       WHERE id_espacio = ?
       `,
@@ -113,11 +155,14 @@ export class CanchaService {
         ubicacion,
         distancia ?? null,
         superficie ?? null,
+        toJson(descripcion),
+        toJson(caracteristicas),
         precio_hora ?? 0,
         rating ?? 0,
         total_resenas ?? 0,
         disponible_hoy ?? true,
         imagen_principal ?? null,
+        toJson(imagenes),
         estado ?? "activo",
         id,
       ]
@@ -137,4 +182,168 @@ export class CanchaService {
 
     return true;
   }
+
+  static async addReview(id: number, data: any) {
+    const cancha: any = await this.getById(id);
+
+    if (!cancha) return null;
+
+    let resenas = [];
+
+    try {
+      resenas = cancha.resenas ? JSON.parse(cancha.resenas) : [];
+    } catch {
+      resenas = [];
+    }
+
+    const nuevaResena = {
+      nombre: data.nombre || "Usuario",
+      iniciales: data.iniciales || "U",
+      estrellas: Number(data.estrellas),
+      texto: data.texto,
+      fecha: new Date().toLocaleDateString("es-CO"),
+    };
+
+    resenas.unshift(nuevaResena);
+
+    const totalResenas = resenas.length;
+
+    const suma = resenas.reduce(
+      (acc: number, item: any) => acc + Number(item.estrellas || 0),
+      0
+    );
+
+    const rating = Number((suma / totalResenas).toFixed(1));
+
+    await pool.query(
+      `
+      UPDATE ESPACIO
+      SET resenas = ?, rating = ?, total_resenas = ?
+      WHERE id_espacio = ?
+      `,
+      [JSON.stringify(resenas), rating, totalResenas, id]
+    );
+
+    return this.getById(id);
+  }
+  static async updateReview(
+  id: number,
+  index: number,
+  data: {
+    texto: string;
+    estrellas: number;
+    email?: string;
+  }
+) {
+  const cancha: any = await this.getById(id);
+
+  if (!cancha) {
+    throw new Error("Cancha no encontrada");
+  }
+
+  const resenas = this.parseJson(cancha.resenas);
+
+  if (!resenas[index]) {
+    throw new Error("Reseña no encontrada");
+  }
+
+  if (data.email && resenas[index].email && resenas[index].email !== data.email) {
+    throw new Error("No puedes editar una reseña que no es tuya");
+  }
+
+  resenas[index] = {
+    ...resenas[index],
+    texto: data.texto,
+    estrellas: Number(data.estrellas),
+    editada: true,
+  };
+
+  const totalResenas = resenas.length;
+
+  const rating =
+    totalResenas > 0
+      ? resenas.reduce(
+          (sum: number, r: any) => sum + Number(r.estrellas || 0),
+          0
+        ) / totalResenas
+      : 0;
+
+  await pool.query(
+    `
+    UPDATE ESPACIO
+    SET resenas = ?,
+        total_resenas = ?,
+        rating = ?
+    WHERE id_espacio = ?
+    `,
+    [
+      JSON.stringify(resenas),
+      totalResenas,
+      Number(rating.toFixed(1)),
+      id,
+    ]
+  );
+
+  return this.getById(id);
+}
+
+static async deleteReview(id: number, index: number, email?: string) {
+  const cancha: any = await this.getById(id);
+
+  if (!cancha) {
+    throw new Error("Cancha no encontrada");
+  }
+
+  const resenas = this.parseJson(cancha.resenas);
+
+  if (!resenas[index]) {
+    throw new Error("Reseña no encontrada");
+  }
+
+  if (email && resenas[index].email && resenas[index].email !== email) {
+    throw new Error("No puedes eliminar una reseña que no es tuya");
+  }
+
+  resenas.splice(index, 1);
+
+  const totalResenas = resenas.length;
+
+  const rating =
+    totalResenas > 0
+      ? resenas.reduce(
+          (sum: number, r: any) => sum + Number(r.estrellas || 0),
+          0
+        ) / totalResenas
+      : 0;
+
+  await pool.query(
+    `
+    UPDATE ESPACIO
+    SET resenas = ?,
+        total_resenas = ?,
+        rating = ?
+    WHERE id_espacio = ?
+    `,
+    [
+      JSON.stringify(resenas),
+      totalResenas,
+      Number(rating.toFixed(1)),
+      id,
+    ]
+  );
+
+  return this.getById(id);
+}
+
+private static parseJson(value: any) {
+  if (!value) return [];
+
+  if (Array.isArray(value)) return value;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return [];
+  }
+}
 }

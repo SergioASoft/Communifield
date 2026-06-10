@@ -69,8 +69,30 @@
   align-items: center;
 }
 
+.topbar {
+  height: 76px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+}
+
 .global-search {
-  display: none;
+  display: block;
+  width: min(520px, 100%);
+  border: 1.5px solid rgba(0, 171, 0, 0.2);
+  background: #ffffff;
+  color: #0e260e;
+  padding: 13px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  font-family: "Outfit", sans-serif;
+}
+
+.global-search:focus {
+  border-color: #00ab00;
+  box-shadow: 0 0 0 3px rgba(0, 171, 0, 0.08);
 }
 
 .admin-profile {

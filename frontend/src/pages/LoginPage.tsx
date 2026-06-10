@@ -74,7 +74,16 @@ export default function LoginPage() {
         localStorage.setItem("communifield_token", res.token);
         localStorage.setItem("communifield_user", JSON.stringify(res.user));
         setAlert({ type: "success", text: "Inicio de sesion exitoso. Token guardado correctamente." });
-        navigate(res.redirectTo || res.user?.redirectTo || (res.user?.type === "admin" ? "/usuarios" : "/canchas"));
+       const userType = res.user?.type || res.user?.Tipo;
+       navigate(
+        res.redirectTo ||
+        res.user?.redirectTo ||
+        (userType === "admin"
+    ? "/usuarios"
+    : userType === "organizer"
+    ? "/gestor/mis-canchas"
+    : "/canchas")
+);
       } else {
         const res = await api.register({ name: form.name, email: form.email, phone: form.phone, password: form.password, type: form.type });
         setAlert({ type: "success", text: res.message || "Registro exitoso." });
