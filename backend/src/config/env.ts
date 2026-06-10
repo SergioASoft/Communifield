@@ -19,4 +19,14 @@ export const env = {
   loginBlockMinutes: Number(process.env.LOGIN_BLOCK_MINUTES || 15),
   rateLimitWindowMinutes: Number(process.env.RATE_LIMIT_WINDOW_MINUTES || 15),
   rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 100),
+  email: {
+    user: process.env.EMAIL_USER || "communifield@gmail.com",
+    pass: process.env.EMAIL_PASS || "nzmd gefu belm jiwt",
+  },
+  smtpHost: process.env.SMTP_HOST || "smtp.gmail.com",
+  smtpPort: process.env.SMTP_PORT || "587",
+  smtpSecure: process.env.SMTP_SECURE || "false",
+  smtpUser: process.env.SMTP_USER || "communifield@gmail.com",
+  smtpPass: process.env.SMTP_PASS || "nzmd gefu belm jiwt",
+  smtpFrom: process.env.SMTP_FROM || "CommuniField <communifield@gmail.com>",
 };

@@ -5,6 +5,20 @@ USE communifield;
 -- 👤 1. TABLA USUARIO
 -- =====================================================================
 CREATE TABLE USUARIO (
+  id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  email_verificado BOOLEAN DEFAULT FALSE,
+  token_verificacion VARCHAR(255) NULL,
+  reset_token VARCHAR(255) NULL,
+  reset_token_expira DATETIME NULL,
+  contraseña_hash VARCHAR(255) NOT NULL, 
+  tel VARCHAR(20),
+  biografia TEXT,
+  Tipo ENUM('organizer', 'player', 'admin') NOT NULL,
+  foto LONGTEXT,
+  posicion VARCHAR(100),
+  fk_id_evento INT
     id_usuario INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     email VARCHAR(150) NOT NULL UNIQUE,

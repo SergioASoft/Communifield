@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
-
 import '../styles/HomePage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-
 import { Usuario } from '../types';
 
 interface Feature {
