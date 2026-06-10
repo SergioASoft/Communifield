@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import type { ApiError } from "../services/api";
 import "../styles/auth.css";
+import HomePage from "./HomePage";
 
 type Mode = "login" | "register";
 type RegisterType = "organizer" | "player";
@@ -171,12 +172,10 @@ export default function LoginPage() {
     }
   };
 
-  return (
-    <main className="page">
-      <section className="auth-card">
-        <div className="brand">
-          CommuniField <span />
-        </div>
+  return <main className="page">
+    <section className="auth-card">
+      <button className="brand brand-button" type="button" onClick={() => navigate("/")}>CommuniField <span /></button>
+      <button className="back-button auth-back-button" type="button" onClick={() => navigate("/")}>← Retroceder</button>
 
         <h1>
           Vive el futbol como <strong>nunca</strong>
@@ -372,7 +371,7 @@ export default function LoginPage() {
         </div>
       </section>
     </main>
-  );
+  ;
 }
 
 function Field({

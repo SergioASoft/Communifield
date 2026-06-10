@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
     <main className="page">
       <section className="auth-card">
         <button type="button" className="back-button" onClick={() => navigate("/login")}> <ArrowLeft size={17} /> Volver</button>
-        <div className="brand">CommuniField <span /></div>
+        <button className="brand brand-button" type="button" onClick={() => navigate("/")}>CommuniField <span /></button>
         <h1>Recupera tu <strong>contraseña</strong></h1>
         <p className="subtitle">Escribe tu correo y te enviaremos un enlace seguro para crear una nueva contraseña.</p>
 

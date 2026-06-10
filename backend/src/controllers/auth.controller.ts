@@ -121,17 +121,39 @@ export async function register(req: Request, res: Response) {
   );
 
   await transporter.sendMail({
-    from: process.env.SMTP_FROM,
-    to: email,
-    subject: "Verifica tu cuenta en Communifield",
-    html: `
-  <h2>Bienvenido a Communifield</h2>
-  <p>Este enlace es válido por 15 minutos.</p>
-  <a href="${env.frontendUrl}/verify/${verificationToken}">
-  Verificar Cuenta
-  </a>
-  `
-  });
+  from: process.env.SMTP_FROM,
+  to: email,
+  subject: "Verifica tu cuenta - CommuniField",
+  html: `
+    <div style="margin:0;padding:0;background:#edf7ed;font-family:Arial,sans-serif;">
+      <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+        <div style="background:#ffffff;border-radius:18px;padding:32px;border:1px solid rgba(0,171,0,0.18);">
+          <h1 style="margin:0;color:#00ab00;font-size:28px;">CommuniField</h1>
+          <h2 style="color:#0e260e;">Verifica tu cuenta</h2>
+
+          <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
+            Hola ${name}, gracias por registrarte en CommuniField.
+          </p>
+
+          <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
+            Para activar tu cuenta, haz clic en el siguiente botón.
+            Este enlace será válido durante <strong>15 minutos</strong>.
+          </p>
+
+          <a href="${env.frontendUrl}/verify/${verificationToken}"
+            style="display:inline-block;background:#00ab00;color:#ffffff;text-decoration:none;
+            padding:14px 22px;border-radius:10px;font-weight:bold;margin-top:12px;">
+            Verificar cuenta
+          </a>
+
+          <p style="color:#6e8f6e;font-size:13px;line-height:1.6;margin-top:24px;">
+            Si no creaste esta cuenta, puedes ignorar este correo.
+          </p>
+        </div>
+      </div>
+    </div>
+  `,
+});
 
   return res.status(201).json({
     message: "Registro exitoso. Revisa tu correo para verificar la cuenta.",
@@ -202,8 +224,8 @@ export async function verifyEmail(req: Request, res: Response) {
     const decoded = jwt.verify(token as string, env.jwtSecret) as unknown as { id_usuario: number };
 
     const [rows] = await pool.query<any[]>(
-      `SELECT * FROM USUARIO WHERE id_usuario = ? LIMIT 1`,
-      [decoded.id_usuario]
+      `SELECT * FROM USUARIO WHERE id_usuario = ? AND token_verificacion = ? LIMIT 1`,
+      [decoded.id_usuario, token]
     );
 
     const user = rows[0];
@@ -244,32 +266,55 @@ export async function verifyEmail(req: Request, res: Response) {
 export async function forgotPassword(req: Request, res: Response) {
   const { email } = req.body;
 
-  const token = crypto.randomBytes(32).toString("hex");
-
-  const expireDate = new Date(Date.now() + 5 * 60 * 1000);
+  const token = jwt.sign(
+  { email },
+  env.jwtSecret,
+  { expiresIn: "5m" }
+);
 
   await pool.query(
     `
     UPDATE USUARIO
     SET
-      reset_token = ?,
-      reset_token_expira = ?
+      reset_token = ?
     WHERE email = ?
     `,
-    [token, expireDate, email]
+    [token, email]
   );
 
   await transporter.sendMail({
-    from: process.env.SMTP_FROM,
-    to: email,
-    subject: "Recuperar contraseña",
-    html: `
-      <h2>Recuperar contraseña</h2>
-      <a href="${env.frontendUrl}/reset-password/${token}">
-        Recuperar contraseña
-      </a>
-    `,
-  });
+  from: process.env.SMTP_FROM,
+  to: email,
+  subject: "Recupera tu contraseña - CommuniField",
+  html: `
+    <div style="margin:0;padding:0;background:#edf7ed;font-family:Arial,sans-serif;">
+      <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+        <div style="background:#ffffff;border-radius:18px;padding:32px;border:1px solid rgba(0,171,0,0.18);">
+          <h1 style="margin:0;color:#00ab00;font-size:28px;">CommuniField</h1>
+          <h2 style="color:#0e260e;">Recuperar contraseña</h2>
+
+          <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
+            Recibimos una solicitud para cambiar la contraseña de tu cuenta.
+          </p>
+
+          <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
+            Este enlace será válido durante <strong>5 minutos</strong>.
+          </p>
+
+          <a href="${env.frontendUrl}/reset-password/${token}"
+            style="display:inline-block;background:#00ab00;color:#ffffff;text-decoration:none;
+            padding:14px 22px;border-radius:10px;font-weight:bold;margin-top:12px;">
+            Cambiar contraseña
+          </a>
+
+          <p style="color:#6e8f6e;font-size:13px;line-height:1.6;margin-top:24px;">
+            Si no solicitaste este cambio, puedes ignorar este correo.
+          </p>
+        </div>
+      </div>
+    </div>
+  `,
+});
 
   res.json({ message: "Correo enviado" });
 }
@@ -277,35 +322,54 @@ export async function forgotPassword(req: Request, res: Response) {
 export async function resetPassword(req: Request, res: Response) {
   const { token, password } = req.body;
 
-  const [rows] = await pool.query<any[]>(
-    `
+  try {
+    const decoded = jwt.verify(token, env.jwtSecret) as { email: string };
+
+    const [rows] = await pool.query<any[]>(
+      `
       SELECT *
       FROM USUARIO
-      WHERE reset_token = ?
-      AND reset_token_expira > NOW()
-    `,
-    [token]
-  );
+      WHERE email = ?
+      AND reset_token = ?
+      LIMIT 1
+      `,
+      [decoded.email, token]
+    );
 
-  const user = rows[0];
+    const user = rows[0];
 
-  if (!user) {
-    return res.status(400).json({ message: "Token inválido o expirado" });
+    if (!user) {
+      return res.status(400).json({
+        message: "El enlace para recuperar la contraseña ya no es válido.",
+      });
+    }
+
+    const hash = await hashPassword(password);
+
+    await pool.query(
+      `
+      UPDATE USUARIO
+      SET
+        contraseña_hash = ?,
+        reset_token = NULL,
+        reset_token_expira = NULL
+      WHERE id_usuario = ?
+      `,
+      [hash, user.id_usuario]
+    );
+
+    return res.json({
+      message: "Contraseña actualizada correctamente.",
+    });
+  } catch (error: any) {
+    if (error.name === "TokenExpiredError") {
+      return res.status(400).json({
+        message: "El enlace para recuperar la contraseña ha caducado.",
+      });
+    }
+
+    return res.status(400).json({
+      message: "El enlace para recuperar la contraseña no es válido.",
+    });
   }
-
-  const hash = await hashPassword(password);
-
-  await pool.query(
-    `
-    UPDATE USUARIO
-    SET
-      contraseña_hash = ?,
-      reset_token = NULL,
-      reset_token_expira = NULL
-    WHERE id_usuario = ?
-    `,
-    [hash, user.id_usuario]
-  );
-
-  res.json({ message: "Contraseña actualizada" });
 }

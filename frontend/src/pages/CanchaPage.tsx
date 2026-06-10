@@ -13,6 +13,20 @@ interface GaleriaProps {
   cancha: any;
 }
 
+function parseJsonField(value: any, fallback: any[] = []) {
+  if (!value) return fallback;
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
 function getUsuarioSesion(): Usuario | undefined {
   try {
     const raw = localStorage.getItem("communifield_user");
@@ -44,46 +58,57 @@ function getInitials(name: string) {
 function Galeria({ cancha }: GaleriaProps) {
   const [miniActiva, setMiniActiva] = useState(0);
 
+  const imagenPrincipal =
+    cancha.imagenes?.[miniActiva] ||
+    cancha.imagen_principal ||
+    "";
+
   return (
     <section className="galeria">
       <div className="galeria-principal">
-        <img
-          src={cancha.imagen_principal}
-          alt={cancha.nombre}
-          onError={(e) => {
-            const el = e.currentTarget.parentElement!;
+        {imagenPrincipal ? (
+          <img
+            src={imagenPrincipal}
+            alt={cancha.nombre}
+            onError={(e) => {
+              const el = e.currentTarget.parentElement!;
 
-            el.innerHTML = `
-              <div class="galeria-placeholder">
-                <span></span>
-                <p>Foto principal</p>
-              </div>
-            `;
-          }}
-        />
-      </div>
-
-      <div className="galeria-miniaturas">
-        {cancha.imagenes.map((img: string, i: number) => (
-          <div
-            key={i}
-            className={`miniatura${miniActiva === i ? " active" : ""}`}
-            onClick={() => setMiniActiva(i)}
-          >
-            <img
-              src={img}
-              alt={`Vista ${i + 1}`}
-              onError={(e) => {
-                (e.currentTarget.parentElement as HTMLElement).innerHTML = "a";
-              }}
-            />
+              el.innerHTML = `
+                <div class="galeria-placeholder">
+                  <p>Sin imagen disponible</p>
+                </div>
+              `;
+            }}
+          />
+        ) : (
+          <div className="galeria-placeholder">
+            <p>Sin imagen disponible</p>
           </div>
-        ))}
-
-        <div className="miniatura miniatura-mas">
-          <span>+ fotos</span>
-        </div>
+        )}
       </div>
+
+      {cancha.imagenes?.length > 0 && (
+        <div className="galeria-miniaturas">
+          {cancha.imagenes.map((img: string, i: number) => (
+            <div
+              key={i}
+              className={`miniatura${
+                miniActiva === i ? " active" : ""
+              }`}
+              onClick={() => setMiniActiva(i)}
+            >
+              <img
+                src={img}
+                alt={`Vista ${i + 1}`}
+              />
+            </div>
+          ))}
+
+          <div className="miniatura miniatura-mas">
+            <span>+ fotos</span>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
@@ -102,7 +127,9 @@ export default function CanchaPage() {
 
   const [cancha, setCancha] = useState<any>(null);
 
-  const [usuario, setUsuario] = useState<Usuario | undefined>(undefined);
+  const [usuario, setUsuario] = useState<
+    Usuario | undefined
+  >(undefined);
 
   useEffect(() => {
     setUsuario(getUsuarioSesion());
@@ -110,27 +137,47 @@ export default function CanchaPage() {
 
   useEffect(() => {
     fetch(`/api/canchas/${id}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(
+            "No se pudo cargar la cancha"
+          );
+        }
+
+        return res.json();
+      })
       .then((data) => {
         setCancha({
           ...data,
 
-          descripcion: JSON.parse(data.descripcion || "[]"),
-
-          imagenes: JSON.parse(data.imagenes || "[]"),
-
-          caracteristicas: JSON.parse(
-            data.caracteristicas || "[]"
+          descripcion: parseJsonField(
+            data.descripcion
           ),
 
-          horarios: JSON.parse(data.horarios || "[]"),
+          imagenes: parseJsonField(
+            data.imagenes
+          ),
 
-          resenas: JSON.parse(data.resenas || "[]"),
+          caracteristicas: parseJsonField(
+            data.caracteristicas
+          ),
 
-          disponible_hoy: Boolean(data.disponible_hoy),
+          horarios: parseJsonField(
+            data.horarios
+          ),
+
+          resenas: parseJsonField(
+            data.resenas
+          ),
+
+          disponible_hoy: Boolean(
+            data.disponible_hoy
+          ),
         });
       })
-      .catch(console.error);
+      .catch((error) => {
+        console.error(error);
+      });
   }, [id]);
 
   if (!cancha) {
@@ -148,6 +195,16 @@ export default function CanchaPage() {
       <Header usuario={usuario} />
 
       <main className="cancha-main">
+        <button
+          className="back-button cancha-back-button"
+          type="button"
+          onClick={() =>
+            window.history.back()
+          }
+        >
+          ← Retroceder
+        </button>
+
         <nav className="breadcrumb">
           <a href="/">Inicio</a>
 
@@ -185,21 +242,28 @@ export default function CanchaPage() {
                 </h1>
 
                 <p className="cancha-ubicacion">
-                  {cancha.ubicacion} · A {cancha.distancia}
+                  {cancha.ubicacion}
+
+                  {cancha.distancia &&
+                    ` · A ${cancha.distancia}`}
                 </p>
               </div>
 
               <div className="cancha-rating">
                 <span className="rating-numero">
-                  {cancha.rating}
+                  {cancha.rating || 0}
                 </span>
 
                 <div className="rating-estrellas">
-                  <Estrellas valor={Number(cancha.rating)} />
+                  <Estrellas
+                    valor={Number(
+                      cancha.rating || 0
+                    )}
+                  />
                 </div>
 
                 <span className="rating-reviews">
-                  {cancha.total_resenas} reseñas
+                  {cancha.total_resenas || 0} reseñas
                 </span>
               </div>
             </div>
@@ -209,9 +273,15 @@ export default function CanchaPage() {
                 Descripción
               </h2>
 
-              {cancha.descripcion.map(
-                (parrafo: string, i: number) => (
-                  <p key={i} className="cancha-desc">
+              {(cancha.descripcion || []).map(
+                (
+                  parrafo: string,
+                  i: number
+                ) => (
+                  <p
+                    key={i}
+                    className="cancha-desc"
+                  >
                     {parrafo}
                   </p>
                 )
@@ -224,18 +294,15 @@ export default function CanchaPage() {
               </h2>
 
               <div className="caracteristicas-grid">
-                {cancha.caracteristicas.map(
-                  (c: any, index: number) => (
+                {(cancha.caracteristicas || []).map(
+                  (
+                    c: any,
+                    index: number
+                  ) => (
                     <div
                       key={index}
                       className="caract-item"
                     >
-                      {c.icono && (
-                        <span className="caract-icon">
-                          {c.icono}
-                        </span>
-                      )}
-
                       <div>
                         <p className="caract-label">
                           {c.label}
@@ -257,12 +324,17 @@ export default function CanchaPage() {
               </h2>
 
               <div className="horarios-semana">
-                {cancha.horarios.map(
-                  (h: any, index: number) => (
+                {(cancha.horarios || []).map(
+                  (
+                    h: any,
+                    index: number
+                  ) => (
                     <div
                       key={index}
                       className={`dia-item${
-                        h.esFinde ? " dia-finde" : ""
+                        h.esFinde
+                          ? " dia-finde"
+                          : ""
                       }`}
                     >
                       <span className="dia-nombre">
@@ -283,13 +355,16 @@ export default function CanchaPage() {
                 Reseñas
 
                 <span className="reseñas-count">
-                  ({cancha.total_resenas})
+                  ({cancha.total_resenas || 0})
                 </span>
               </h2>
 
               <div className="reseñas-lista">
-                {cancha.resenas.map(
-                  (r: any, index: number) => (
+                {(cancha.resenas || []).map(
+                  (
+                    r: any,
+                    index: number
+                  ) => (
                     <div
                       key={index}
                       className="reseña-card"
@@ -310,7 +385,11 @@ export default function CanchaPage() {
                         </div>
 
                         <div className="reseña-stars">
-                          <Estrellas valor={r.estrellas} />
+                          <Estrellas
+                            valor={
+                              r.estrellas || 0
+                            }
+                          />
                         </div>
                       </div>
 
