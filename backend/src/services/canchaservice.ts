@@ -184,48 +184,44 @@ export class CanchaService {
   }
 
   static async addReview(id: number, data: any) {
-    const cancha: any = await this.getById(id);
+  const cancha: any = await this.getById(id);
 
-    if (!cancha) return null;
+  if (!cancha) return null;
 
-    let resenas = [];
+  const resenas = this.parseJson(cancha.resenas);
 
-    try {
-      resenas = cancha.resenas ? JSON.parse(cancha.resenas) : [];
-    } catch {
-      resenas = [];
-    }
+  const nuevaResena = {
+    nombre: data.nombre || "Usuario",
+    email: data.email || "",
+    iniciales: data.iniciales || "U",
+    foto: data.foto || null,
+    estrellas: Number(data.estrellas),
+    texto: data.texto,
+    fecha: data.fecha || new Date().toLocaleDateString("es-CO"),
+  };
 
-    const nuevaResena = {
-      nombre: data.nombre || "Usuario",
-      iniciales: data.iniciales || "U",
-      estrellas: Number(data.estrellas),
-      texto: data.texto,
-      fecha: new Date().toLocaleDateString("es-CO"),
-    };
+  resenas.unshift(nuevaResena);
 
-    resenas.unshift(nuevaResena);
+  const totalResenas = resenas.length;
 
-    const totalResenas = resenas.length;
+  const suma = resenas.reduce(
+    (acc: number, item: any) => acc + Number(item.estrellas || 0),
+    0
+  );
 
-    const suma = resenas.reduce(
-      (acc: number, item: any) => acc + Number(item.estrellas || 0),
-      0
-    );
+  const rating = Number((suma / totalResenas).toFixed(1));
 
-    const rating = Number((suma / totalResenas).toFixed(1));
+  await pool.query(
+    `
+    UPDATE ESPACIO
+    SET resenas = ?, rating = ?, total_resenas = ?
+    WHERE id_espacio = ?
+    `,
+    [JSON.stringify(resenas), rating, totalResenas, id]
+  );
 
-    await pool.query(
-      `
-      UPDATE ESPACIO
-      SET resenas = ?, rating = ?, total_resenas = ?
-      WHERE id_espacio = ?
-      `,
-      [JSON.stringify(resenas), rating, totalResenas, id]
-    );
-
-    return this.getById(id);
-  }
+  return this.getById(id);
+}
   static async updateReview(
   id: number,
   index: number,
