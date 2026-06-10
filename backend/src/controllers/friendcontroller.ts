@@ -177,4 +177,28 @@ export class FriendController {
     });
   }
 }
+static async deleteFriend(req: Request, res: Response) {
+  try {
+    const friendshipId = Number(req.params.friendshipId);
+    const userId = Number(req.body.userId);
+
+    if (!friendshipId || !userId) {
+      return res.status(400).json({
+        message: "Datos incompletos",
+      });
+    }
+
+    await FriendService.deleteFriend(friendshipId, userId);
+
+    res.json({
+      message: "Amigo eliminado correctamente",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Error eliminando amigo",
+    });
+  }
+}
 }

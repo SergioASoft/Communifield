@@ -15,7 +15,7 @@ export const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
-app.use(express.json({ limit: "6mb" }));
+app.use(express.json({ limit: "25mb" }));
 
 app.use(
   rateLimit({
@@ -51,11 +51,13 @@ app.get("/db-test", async (_req, res) => {
 app.use("/auth", authRouter);
 app.use("/users", userRouter);
 
+
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
 app.use("/api/assistant", assistantRouter);
 app.use("/api/canchas", canchaRouter);
 app.use("/api/friends", friendRoutes);
+
 
 app.use(notFound);
 app.use(errorHandler);

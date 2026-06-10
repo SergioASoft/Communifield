@@ -52,13 +52,27 @@ function getUsuarioSesion(): Usuario | undefined {
     return undefined;
   }
 }
+function getTipoUsuario() {
+  try {
+    const raw = localStorage.getItem("communifield_user");
+    if (!raw) return "";
+
+    const user = JSON.parse(raw);
+    return user.type || user.Tipo || "";
+  } catch {
+    return "";
+  }
+}
 
 export default function HomePage() {
   const [usuario, setUsuario] = useState<Usuario | undefined>(undefined);
+  const [tipoUsuario, setTipoUsuario] = useState("");
 
   useEffect(() => {
     setUsuario(getUsuarioSesion());
+    setTipoUsuario(getTipoUsuario());
   }, []);
+  
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
@@ -81,9 +95,12 @@ export default function HomePage() {
             </p>
 
             <div className="hero-ctas">
-              <a href="/canchas" className="cta-outline">
-                Ver canchas →
-              </a>
+              <a
+  href={tipoUsuario === "organizer" ? "/gestor/mis-canchas" : "/canchas"}
+  className="cta-outline"
+>
+  {tipoUsuario === "organizer" ? "Gestionar mis canchas →" : "Ver canchas →"}
+</a>
             </div>
           </div>
 
@@ -123,9 +140,12 @@ export default function HomePage() {
               Iniciar gratis →
             </a>
           ) : (
-            <a href="/canchas" className="btn-banner">
-              Ver canchas →
-            </a>
+          <a
+          href={tipoUsuario === "organizer" ? "/gestor/mis-canchas" : "/canchas"}
+          className="btn-banner"
+>
+  {tipoUsuario === "organizer" ? "Gestionar mis canchas →" : "Ver canchas →"}
+</a>
           )}
         </section>
       </main>
