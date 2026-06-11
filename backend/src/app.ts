@@ -7,6 +7,7 @@ import { testDatabaseConnection } from "./config/db";
 import { authRouter } from "./routes/auth.routes";
 import { userRouter } from "./routes/user.routes";
 import { assistantRouter } from "./routes/assistant.routes";
+import { dashboardRouter } from "./routes/dashboard.routes";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
 import canchaRouter from "./routes/cancharoutes";
 import friendRoutes from "./routes/friendroutes";
@@ -58,6 +59,7 @@ app.use("/api/users", userRouter);
 app.use("/api/assistant", assistantRouter);
 app.use("/api/canchas", canchaRouter);
 app.use("/api/friends", friendRoutes);
+app.use("/api/dashboard", dashboardRouter);
 
 
 app.use(notFound);

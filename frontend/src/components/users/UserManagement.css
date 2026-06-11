@@ -130,6 +130,29 @@
   font-weight: 800;
 }
 
+.admin-logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(192, 57, 43, 0.22);
+  background: #ffffff;
+  color: #c0392b;
+  border-radius: 8px;
+  padding: 10px 13px;
+  font-family: "Outfit", sans-serif;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(14, 38, 14, 0.06);
+}
+
+.admin-logout-btn:hover {
+  background: #ffe8e8;
+  border-color: rgba(192, 57, 43, 0.42);
+}
+
 .page-header {
   margin-top: 20px;
 }

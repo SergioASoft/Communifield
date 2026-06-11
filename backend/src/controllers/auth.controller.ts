@@ -8,14 +8,13 @@ import { loginSchema, registerSchema } from "../utils/validators";
 import { UserType } from "../models/user";
 import { UpdateUserDTO } from "../dtos/UpdateUserDTO";
 import { UserService } from "../services/userService";
-import crypto from "crypto";
 import { transporter } from "../services/MailService";
 import jwt from "jsonwebtoken"; // <-- NUEVO: Importamos JWT
+
 
 type UserRow = RowDataPacket & {
   user_id: number;
   id_usuario: number;
-  email_verificado: boolean;
   name: string;
   nombre: string;
   email: string;
@@ -36,7 +35,6 @@ type UserRow = RowDataPacket & {
 const userColumns = `
   id_usuario AS user_id,
   id_usuario,
-  email_verificado,
   nombre AS name,
   nombre,
   email,
@@ -86,78 +84,80 @@ const publicUser = (user: UserRow) => ({
 
 export async function register(req: Request, res: Response) {
   const parsed = registerSchema.safeParse(req.body);
+
   if (!parsed.success) {
-    return res.status(400).json({ message: "Datos invalidos", errors: parsed.error.flatten().fieldErrors });
+    return res.status(400).json({
+      message: "Datos invalidos",
+      errors: parsed.error.flatten().fieldErrors,
+    });
   }
 
-  const { name, email, phone, password, type, bio, photo, position, photoFile } = parsed.data;
+  const { name, email, phone, password, type, bio, photo, position } = parsed.data;
+
   const [exists] = await pool.query<UserRow[]>(
-    "SELECT id_usuario AS user_id, email, tel AS phone FROM USUARIO WHERE email = ? LIMIT 1",
+    "SELECT id_usuario FROM USUARIO WHERE email = ? LIMIT 1",
     [email]
   );
 
   if (exists.length) {
-    const errors: Record<string, string[]> = {};
-    errors.email = ["Este correo ya esta registrado"];
-    return res.status(409).json({ message: "Usuario duplicado", errors });
+    return res.status(409).json({
+      message: "Este correo ya esta registrado",
+      errors: {
+        email: ["Este correo ya esta registrado"],
+      },
+    });
   }
 
-  const newUser = await UserService.createUser({ name, email, phone, password, type, bio, photo, photoFile, position });
+  const passwordHash = await hashPassword(password);
 
-  // CAMBIO 1: Generamos un JWT con expiración de 15 minutos en lugar de crypto
   const verificationToken = jwt.sign(
-    { id_usuario: newUser.user_id },
-    env.jwtSecret, // Usamos tu secreto del env
-    { expiresIn: "15m" } // <-- Caducidad
-  );
-
-  await pool.query(
-    `
-  UPDATE USUARIO
-  SET token_verificacion = ?
-  WHERE id_usuario = ?
-  `,
-    [verificationToken, newUser.user_id]
+    {
+      name,
+      email,
+      phone,
+      passwordHash,
+      type,
+      bio: bio || null,
+      photo: photo || null,
+      position: position || null,
+    },
+    env.jwtSecret,
+    { expiresIn: "5m" }
   );
 
   await transporter.sendMail({
-  from: process.env.SMTP_FROM,
-  to: email,
-  subject: "Verifica tu cuenta - CommuniField",
-  html: `
-    <div style="margin:0;padding:0;background:#edf7ed;font-family:Arial,sans-serif;">
-      <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
-        <div style="background:#ffffff;border-radius:18px;padding:32px;border:1px solid rgba(0,171,0,0.18);">
-          <h1 style="margin:0;color:#00ab00;font-size:28px;">CommuniField</h1>
-          <h2 style="color:#0e260e;">Verifica tu cuenta</h2>
+    from: process.env.SMTP_FROM,
+    to: email,
+    subject: "Verifica tu cuenta - CommuniField",
+    html: `
+      <div style="margin:0;padding:0;background:#edf7ed;font-family:Arial,sans-serif;">
+        <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+          <div style="background:#ffffff;border-radius:18px;padding:32px;border:1px solid rgba(0,171,0,0.18);">
+            <h1 style="margin:0;color:#00ab00;font-size:28px;">CommuniField</h1>
+            <h2 style="color:#0e260e;">Verifica tu cuenta</h2>
 
-          <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
-            Hola ${name}, gracias por registrarte en CommuniField.
-          </p>
+            <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
+              Hola ${name}, gracias por registrarte.
+            </p>
 
-          <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
-            Para activar tu cuenta, haz clic en el siguiente botón.
-            Este enlace será válido durante <strong>15 minutos</strong>.
-          </p>
+            <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
+              Para activar tu cuenta, haz clic en el botón.
+              Este enlace será válido durante <strong>5 minutos</strong>.
+            </p>
 
-          <a href="${env.frontendUrl}/verify/${verificationToken}"
-            style="display:inline-block;background:#00ab00;color:#ffffff;text-decoration:none;
-            padding:14px 22px;border-radius:10px;font-weight:bold;margin-top:12px;">
-            Verificar cuenta
-          </a>
-
-          <p style="color:#6e8f6e;font-size:13px;line-height:1.6;margin-top:24px;">
-            Si no creaste esta cuenta, puedes ignorar este correo.
-          </p>
+            <a href="${env.frontendUrl}/verify/${verificationToken}"
+              style="display:inline-block;background:#00ab00;color:#ffffff;text-decoration:none;
+              padding:14px 22px;border-radius:10px;font-weight:bold;margin-top:12px;">
+              Verificar cuenta
+            </a>
+          </div>
         </div>
       </div>
-    </div>
-  `,
-});
+    `,
+  });
 
   return res.status(201).json({
     message: "Registro exitoso. Revisa tu correo para verificar la cuenta.",
-    userId: newUser?.user_id,
   });
 }
 
@@ -175,11 +175,6 @@ export async function login(req: Request, res: Response) {
   const validPassword = await comparePassword(password, user.password_hash);
   if (!validPassword) {
     return res.status(401).json({ message: "Correo o contraseña incorrectos" });
-  }
-  if (!user.email_verificado) {
-    return res.status(403).json({
-      message: "Debes verificar tu correo"
-    });
   }
 
   const tokenUser = { id: user.user_id, user_id: user.user_id, email: user.email, type: user.type, role: roleFromType(user.type) };
@@ -218,144 +213,177 @@ export async function updateMe(req: Request, res: Response) {
 }
 
 export async function verifyEmail(req: Request, res: Response) {
-  const { token } = req.params;
+  const token = String(req.params.token);
 
   try {
-    const decoded = jwt.verify(token as string, env.jwtSecret) as unknown as { id_usuario: number };
+    const decoded = jwt.verify(token, env.jwtSecret) as unknown as {
+      name: string;
+      email: string;
+      phone: string;
+      passwordHash: string;
+      type: UserType;
+      bio: string | null;
+      photo: string | null;
+      position: string | null;
+    };
 
-    const [rows] = await pool.query<any[]>(
-      `SELECT * FROM USUARIO WHERE id_usuario = ? AND token_verificacion = ? LIMIT 1`,
-      [decoded.id_usuario, token]
+    const [exists] = await pool.query<any[]>(
+      "SELECT id_usuario FROM USUARIO WHERE email = ? LIMIT 1",
+      [decoded.email]
     );
 
-    const user = rows[0];
-
-    if (!user) {
-      return res.status(404).json({ message: "Usuario no encontrado" });
-    }
-
-    if (user.email_verificado) {
-      return res.status(200).json({ 
-        message: "Tu cuenta ya estaba verificada previamente. ¡Puedes iniciar sesión!" 
+    if (exists.length) {
+      return res.status(200).json({
+        message: "Tu cuenta ya está verificada. Ya puedes iniciar sesión.",
       });
     }
 
     await pool.query(
       `
-      UPDATE USUARIO
-      SET
-        email_verificado = TRUE,
-        token_verificacion = NULL
-      WHERE id_usuario = ?
+      INSERT INTO USUARIO
+      (nombre, email, \`contraseña_hash\`, tel, Tipo, biografia, foto, posicion)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [user.id_usuario]
+      [
+        decoded.name,
+        decoded.email,
+        decoded.passwordHash,
+        decoded.phone,
+        decoded.type,
+        decoded.bio,
+        decoded.photo,
+        decoded.position,
+      ]
     );
 
-    return res.json({ message: "Correo verificado exitosamente" });
-
+    return res.json({
+      message: "Correo verificado exitosamente. Ya puedes iniciar sesión.",
+    });
   } catch (error: any) {
     if (error.name === "TokenExpiredError") {
-      return res.status(400).json({ 
-        message: "El enlace de verificación ha caducado (15 minutos). Por favor, regístrate nuevamente o solicita otro enlace." 
+      return res.status(400).json({
+        message: "El enlace de verificación ha caducado. Regístrate nuevamente.",
       });
     }
-    return res.status(400).json({ message: "Token inválido o mal formado" });
+
+    return res.status(400).json({
+      message: "Token inválido o mal formado.",
+    });
   }
 }
+
+
 
 export async function forgotPassword(req: Request, res: Response) {
   const { email } = req.body;
 
-  const token = jwt.sign(
-  { email },
-  env.jwtSecret,
-  { expiresIn: "5m" }
-);
-
-  await pool.query(
+  const [rows] = await pool.query<any[]>(
     `
-    UPDATE USUARIO
-    SET
-      reset_token = ?
+    SELECT id_usuario, email, \`contraseña_hash\` AS password_hash
+    FROM USUARIO
     WHERE email = ?
+    LIMIT 1
     `,
-    [token, email]
+    [email]
+  );
+
+  const user = rows[0];
+
+  if (!user) {
+    return res.status(404).json({
+      message: "Este correo no tiene una cuenta registrada.",
+    });
+  }
+
+  const token = jwt.sign(
+    {
+      id_usuario: user.id_usuario,
+      email: user.email,
+      passwordHash: user.password_hash,
+    },
+    env.jwtSecret,
+    { expiresIn: "5m" }
   );
 
   await transporter.sendMail({
-  from: process.env.SMTP_FROM,
-  to: email,
-  subject: "Recupera tu contraseña - CommuniField",
-  html: `
-    <div style="margin:0;padding:0;background:#edf7ed;font-family:Arial,sans-serif;">
-      <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
-        <div style="background:#ffffff;border-radius:18px;padding:32px;border:1px solid rgba(0,171,0,0.18);">
-          <h1 style="margin:0;color:#00ab00;font-size:28px;">CommuniField</h1>
-          <h2 style="color:#0e260e;">Recuperar contraseña</h2>
+    from: process.env.SMTP_FROM,
+    to: email,
+    subject: "Recupera tu contraseña - CommuniField",
+    html: `
+      <div style="margin:0;padding:0;background:#edf7ed;font-family:Arial,sans-serif;">
+        <div style="max-width:560px;margin:0 auto;padding:32px 16px;">
+          <div style="background:#ffffff;border-radius:18px;padding:32px;border:1px solid rgba(0,171,0,0.18);">
+            <h1 style="margin:0;color:#00ab00;font-size:28px;">CommuniField</h1>
+            <h2 style="color:#0e260e;">Recuperar contraseña</h2>
 
-          <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
-            Recibimos una solicitud para cambiar la contraseña de tu cuenta.
-          </p>
+            <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
+              Recibimos una solicitud para cambiar la contraseña de tu cuenta.
+            </p>
 
-          <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
-            Este enlace será válido durante <strong>5 minutos</strong>.
-          </p>
+            <p style="color:#3d5c3d;font-size:15px;line-height:1.6;">
+              Este enlace será válido durante <strong>5 minutos</strong>.
+            </p>
 
-          <a href="${env.frontendUrl}/reset-password/${token}"
-            style="display:inline-block;background:#00ab00;color:#ffffff;text-decoration:none;
-            padding:14px 22px;border-radius:10px;font-weight:bold;margin-top:12px;">
-            Cambiar contraseña
-          </a>
-
-          <p style="color:#6e8f6e;font-size:13px;line-height:1.6;margin-top:24px;">
-            Si no solicitaste este cambio, puedes ignorar este correo.
-          </p>
+            <a href="${env.frontendUrl}/reset-password/${token}"
+              style="display:inline-block;background:#00ab00;color:#ffffff;text-decoration:none;
+              padding:14px 22px;border-radius:10px;font-weight:bold;margin-top:12px;">
+              Cambiar contraseña
+            </a>
+          </div>
         </div>
       </div>
-    </div>
-  `,
-});
+    `,
+  });
 
-  res.json({ message: "Correo enviado" });
+  return res.json({
+    message: "Correo enviado. Revisa tu bandeja de entrada.",
+  });
 }
 
 export async function resetPassword(req: Request, res: Response) {
   const { token, password } = req.body;
 
   try {
-    const decoded = jwt.verify(token, env.jwtSecret) as { email: string };
+    const decoded = jwt.verify(token, env.jwtSecret) as {
+      id_usuario: number;
+      email: string;
+      passwordHash: string;
+    };
 
     const [rows] = await pool.query<any[]>(
       `
-      SELECT *
+      SELECT id_usuario, email, \`contraseña_hash\` AS password_hash
       FROM USUARIO
-      WHERE email = ?
-      AND reset_token = ?
+      WHERE id_usuario = ?
+      AND email = ?
       LIMIT 1
       `,
-      [decoded.email, token]
+      [decoded.id_usuario, decoded.email]
     );
 
     const user = rows[0];
 
     if (!user) {
       return res.status(400).json({
-        message: "El enlace para recuperar la contraseña ya no es válido.",
+        message: "El enlace para recuperar la contraseña no es válido.",
       });
     }
 
-    const hash = await hashPassword(password);
+    if (user.password_hash !== decoded.passwordHash) {
+      return res.status(400).json({
+        message: "Este enlace ya fue usado o ya no es válido.",
+      });
+    }
+
+    const newHash = await hashPassword(password);
 
     await pool.query(
       `
       UPDATE USUARIO
-      SET
-        contraseña_hash = ?,
-        reset_token = NULL,
-        reset_token_expira = NULL
+      SET \`contraseña_hash\` = ?
       WHERE id_usuario = ?
       `,
-      [hash, user.id_usuario]
+      [newHash, user.id_usuario]
     );
 
     return res.json({
