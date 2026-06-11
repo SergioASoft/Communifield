@@ -33,7 +33,7 @@ const formInicial = {
   caracteristicas: "",
   precio_hora: 0,
   imagen_principal: "",
-  imagenes: "",
+  imagenes: "[]",
   disponible_hoy: true,
   estado: "activo",
 };
@@ -62,10 +62,10 @@ function getUsuarioHeader(): Usuario | undefined {
   };
 }
 
-function parseJson(value: any, fallback: any[] = []): any[] {
+function parseJson(value: any, fallback: string[] = []): string[] {
   if (!value) return fallback;
 
-  if (Array.isArray(value)) return value;
+  if (Array.isArray(value)) return value.filter(Boolean);
 
   if (typeof value !== "string") return fallback;
 
@@ -74,10 +74,23 @@ function parseJson(value: any, fallback: any[] = []): any[] {
 
   try {
     const parsed = JSON.parse(cleanValue);
-    return Array.isArray(parsed) ? parsed : fallback;
+    return Array.isArray(parsed) ? parsed.filter(Boolean) : fallback;
   } catch {
+    if (
+      cleanValue.startsWith("data:image") ||
+      cleanValue.startsWith("http://") ||
+      cleanValue.startsWith("https://") ||
+      cleanValue.startsWith("/uploads/")
+    ) {
+      return [cleanValue];
+    }
+
     return fallback;
   }
+}
+
+function imagesToJson(images: string[]) {
+  return JSON.stringify(images.filter(Boolean));
 }
 
 function textToList(value: string): string[] {
@@ -103,10 +116,12 @@ function getImageSrc(value: any): string {
 
   if (typeof value === "string") {
     const cleanValue = value.trim();
-    if (!cleanValue) return "";
 
+    if (!cleanValue) return "";
     if (cleanValue.startsWith("data:image")) return cleanValue;
-    if (!cleanValue.startsWith("[")) return cleanValue;
+    if (cleanValue.startsWith("http://")) return cleanValue;
+    if (cleanValue.startsWith("https://")) return cleanValue;
+    if (cleanValue.startsWith("/uploads/")) return cleanValue;
   }
 
   const imagenes = parseJson(value, []);
@@ -187,13 +202,11 @@ export default function GestionMisCanchasPage() {
       ubicacion: cancha.ubicacion || "",
       distancia: cancha.distancia || "",
       superficie: cancha.superficie || "",
-      descripcion: Array.isArray(descripcion) ? descripcion.join("\n") : "",
-      caracteristicas: Array.isArray(caracteristicas)
-        ? caracteristicas.join("\n")
-        : "",
+      descripcion: descripcion.join("\n"),
+      caracteristicas: caracteristicas.join("\n"),
       precio_hora: Number(cancha.precio_hora || 0),
       imagen_principal: cancha.imagen_principal || "",
-      imagenes: Array.isArray(imagenes) ? imagenes.join("\n") : "",
+      imagenes: imagesToJson(imagenes),
       disponible_hoy: Boolean(cancha.disponible_hoy),
       estado: cancha.estado || "activo",
     });
@@ -209,20 +222,14 @@ export default function GestionMisCanchasPage() {
       ubicacion: form.ubicacion,
       distancia: form.distancia || null,
       superficie: form.superficie || null,
-      descripcion: form.descripcion
-        .split("\n")
-        .map((x) => x.trim())
-        .filter(Boolean),
-      caracteristicas: form.caracteristicas
-        .split("\n")
-        .map((x) => x.trim())
-        .filter(Boolean),
+      descripcion: textToList(form.descripcion),
+      caracteristicas: textToList(form.caracteristicas),
       precio_hora: Number(form.precio_hora),
       rating: canchaActiva?.rating || 0,
       total_resenas: canchaActiva?.total_resenas || 0,
       disponible_hoy: form.disponible_hoy,
       imagen_principal: form.imagen_principal || null,
-      imagenes: textToList(form.imagenes),
+      imagenes: parseJson(form.imagenes),
       estado: form.estado,
     };
 
@@ -249,31 +256,35 @@ export default function GestionMisCanchasPage() {
     abrirNuevaCancha();
   }
 
+  async function borrarCancha(cancha: Cancha) {
+    const confirmar = window.confirm(
+      `¿Seguro que quieres borrar la cancha "${cancha.nombre}"?`
+    );
+
+    if (!confirmar) return;
+
+    const res = await fetch(`/api/canchas/${cancha.id_espacio}`, {
+      method: "DELETE",
+    });
+
+    if (!res.ok) {
+      alert("No se pudo borrar la cancha");
+      return;
+    }
+
+    await cargarMisCanchas();
+
+    if (canchaActiva?.id_espacio === cancha.id_espacio) {
+      abrirNuevaCancha();
+    }
+  }
+
   if (!userId) {
     return <p>No hay usuario en sesión.</p>;
   }
-async function borrarCancha(cancha: Cancha) {
-  const confirmar = window.confirm(
-    `¿Seguro que quieres borrar la cancha "${cancha.nombre}"?`
-  );
 
-  if (!confirmar) return;
+  const imagenesSecundariasPreview = parseJson(form.imagenes);
 
-  const res = await fetch(`/api/canchas/${cancha.id_espacio}`, {
-    method: "DELETE",
-  });
-
-  if (!res.ok) {
-    alert("No se pudo borrar la cancha");
-    return;
-  }
-
-  await cargarMisCanchas();
-
-  if (canchaActiva?.id_espacio === cancha.id_espacio) {
-    abrirNuevaCancha();
-  }
-}
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Header usuario={usuario} />
@@ -338,48 +349,58 @@ async function borrarCancha(cancha: Cancha) {
                 }}
               >
                 <div style={imageBox}>
-                 {getImageSrc(cancha.imagen_principal || cancha.imagenes) ? (
-  <img
-    src={getImageSrc(cancha.imagen_principal || cancha.imagenes)}
-    alt={cancha.nombre}
-    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-  />
-) : (
-  <span>Sin imagen</span>
-)}
+                  {getImageSrc(cancha.imagen_principal || cancha.imagenes) ? (
+                    <img
+                      src={getImageSrc(cancha.imagen_principal || cancha.imagenes)}
+                      alt={cancha.nombre}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <span>Sin imagen</span>
+                  )}
                 </div>
 
                 <div style={{ padding: 14 }}>
-                    <h3>{cancha.nombre}</h3>
-                    <p>{cancha.ubicacion}</p>
-                    <strong>
-                         ${Number(cancha.precio_hora || 0).toLocaleString("es-CO")} / hora
-                         </strong>
-                         <p style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                         Estado: {cancha.estado}
-                        </p>
-                         <p style={{ fontSize: 12, fontWeight: 800, marginBottom: 10 }}>
-                            Disponible hoy:{" "}
-                            {cancha.estado === "activo" && Boolean(cancha.disponible_hoy)
-                            ? "Sí": "No"}
-  </p>
-            <button
-              type="button"onClick={(e) => {e.stopPropagation();abrirEditar(cancha);}}style={editButton}
-  >
-    Editar
-  </button>
-  <button
-  type="button"
-  onClick={(e) => {
-    e.stopPropagation();
-    borrarCancha(cancha);
-  }}
-  style={deleteButton}
->
-  Borrar
-</button>
-</div>
+                  <h3>{cancha.nombre}</h3>
+                  <p>{cancha.ubicacion}</p>
 
+                  <strong>
+                    ${Number(cancha.precio_hora || 0).toLocaleString("es-CO")} / hora
+                  </strong>
+
+                  <p style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
+                    Estado: {cancha.estado}
+                  </p>
+
+                  <p style={{ fontSize: 12, fontWeight: 800, marginBottom: 10 }}>
+                    Disponible hoy:{" "}
+                    {cancha.estado === "activo" && Boolean(cancha.disponible_hoy)
+                      ? "Sí"
+                      : "No"}
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      abrirEditar(cancha);
+                    }}
+                    style={editButton}
+                  >
+                    Editar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      borrarCancha(cancha);
+                    }}
+                    style={deleteButton}
+                  >
+                    Borrar
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -405,22 +426,44 @@ async function borrarCancha(cancha: Cancha) {
                   />
                 )}
 
-                <p><strong>Nombre:</strong> {canchaActiva.nombre}</p>
-                <p><strong>Tipo:</strong> {canchaActiva.tipo}</p>
-                <p><strong>Ubicación:</strong> {canchaActiva.ubicacion}</p>
-                <p><strong>Distancia:</strong> {canchaActiva.distancia || "No registrada"}</p>
-                <p><strong>Superficie:</strong> {canchaActiva.superficie || "No registrada"}</p>
+                <p>
+                  <strong>Nombre:</strong> {canchaActiva.nombre}
+                </p>
+                <p>
+                  <strong>Tipo:</strong> {canchaActiva.tipo}
+                </p>
+                <p>
+                  <strong>Ubicación:</strong> {canchaActiva.ubicacion}
+                </p>
+                <p>
+                  <strong>Distancia:</strong>{" "}
+                  {canchaActiva.distancia || "No registrada"}
+                </p>
+                <p>
+                  <strong>Superficie:</strong>{" "}
+                  {canchaActiva.superficie || "No registrada"}
+                </p>
                 <p>
                   <strong>Precio:</strong>{" "}
-                  ${Number(canchaActiva.precio_hora || 0).toLocaleString("es-CO")} / hora
+                  ${Number(canchaActiva.precio_hora || 0).toLocaleString("es-CO")}{" "}
+                  / hora
                 </p>
-                <p><strong>Rating:</strong> {canchaActiva.rating || 0}</p>
-                <p><strong>Total reseñas:</strong> {canchaActiva.total_resenas || 0}</p>
-                <p><strong>Disponible hoy:</strong>{" "}{canchaActiva.estado === "activo" && 
-                Boolean(canchaActiva.disponible_hoy)
-                ? "Sí": "No"}
+                <p>
+                  <strong>Rating:</strong> {canchaActiva.rating || 0}
                 </p>
-                <p><strong>Estado:</strong> {canchaActiva.estado}</p>
+                <p>
+                  <strong>Total reseñas:</strong> {canchaActiva.total_resenas || 0}
+                </p>
+                <p>
+                  <strong>Disponible hoy:</strong>{" "}
+                  {canchaActiva.estado === "activo" &&
+                  Boolean(canchaActiva.disponible_hoy)
+                    ? "Sí"
+                    : "No"}
+                </p>
+                <p>
+                  <strong>Estado:</strong> {canchaActiva.estado}
+                </p>
               </section>
             )}
 
@@ -445,12 +488,17 @@ async function borrarCancha(cancha: Cancha) {
 
                 <label>
                   Tipo
-                  <input
+                  <select
                     required
                     value={form.tipo}
                     onChange={(e) => setForm({ ...form, tipo: e.target.value })}
                     style={formInput}
-                  />
+                  >
+                    <option value="">Seleccione un tipo</option>
+                    <option value="Fútbol 5">Fútbol 5</option>
+                    <option value="Fútbol 7">Fútbol 7</option>
+                    <option value="Fútbol 11">Fútbol 11</option>
+                  </select>
                 </label>
               </div>
 
@@ -527,6 +575,8 @@ async function borrarCancha(cancha: Cancha) {
                       ...form,
                       imagen_principal: imagen,
                     });
+
+                    e.target.value = "";
                   }}
                   style={formInput}
                 />
@@ -560,16 +610,20 @@ async function borrarCancha(cancha: Cancha) {
                       files.map((file) => fileToDataUrl(file))
                     );
 
+                    const imagenesActuales = parseJson(form.imagenes);
+
                     setForm({
                       ...form,
-                      imagenes: [...textToList(form.imagenes), ...nuevasImagenes].join("\n"),
+                      imagenes: imagesToJson([...imagenesActuales, ...nuevasImagenes]),
                     });
+
+                    e.target.value = "";
                   }}
                   style={formInput}
                 />
               </label>
 
-              {textToList(form.imagenes).length > 0 && (
+              {imagenesSecundariasPreview.length > 0 && (
                 <div
                   style={{
                     display: "grid",
@@ -578,9 +632,9 @@ async function borrarCancha(cancha: Cancha) {
                     marginTop: 10,
                   }}
                 >
-                  {textToList(form.imagenes).map((img: string, index: number) => (
+                  {imagenesSecundariasPreview.map((img: string, index: number) => (
                     <img
-                      key={index}
+                      key={`${img}-${index}`}
                       src={img}
                       alt={`Imagen secundaria ${index + 1}`}
                       style={{
@@ -696,6 +750,18 @@ const editButton: React.CSSProperties = {
   marginTop: 4,
 };
 
+const deleteButton: React.CSSProperties = {
+  background: "#c0392b",
+  color: "white",
+  border: "none",
+  borderRadius: 9,
+  padding: "13px 22px",
+  fontWeight: 800,
+  cursor: "pointer",
+  width: "100%",
+  marginTop: 10,
+};
+
 const layoutStyle: React.CSSProperties = {
   display: "grid",
   gridTemplateColumns: "1fr 420px",
@@ -783,15 +849,4 @@ const checkRow: React.CSSProperties = {
   gap: 10,
   fontWeight: 800,
   color: "#0e260e",
-};
-const deleteButton: React.CSSProperties = {
-  background: "#c0392b",
-  color: "white",
-  border: "none",
-  borderRadius: 9,
-  padding: "13px 22px",
-  fontWeight: 800,
-  cursor: "pointer",
-  width: "100%",
-  marginTop: 10,
 };

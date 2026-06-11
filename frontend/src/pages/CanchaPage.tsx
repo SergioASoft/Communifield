@@ -16,34 +16,61 @@ interface GaleriaProps {
 function parseJsonField(value: any, fallback: any[] = []): any[] {
   if (!value) return fallback;
 
-  if (Array.isArray(value)) {
-    return value;
-  }
+  if (Array.isArray(value)) return value.filter(Boolean);
 
-  if (typeof value !== "string") {
-    return fallback;
-  }
+  if (typeof value !== "string") return fallback;
 
   const cleanValue = value.trim();
   if (!cleanValue) return fallback;
 
-  if (cleanValue.startsWith("data:image")) {
-    return [cleanValue];
-  }
-
   try {
     const parsed = JSON.parse(cleanValue);
-    return Array.isArray(parsed) ? parsed : fallback;
+
+    if (Array.isArray(parsed)) return parsed.filter(Boolean);
+
+    if (typeof parsed === "string" && parsed.trim()) {
+      return [parsed.trim()];
+    }
+
+    return fallback;
   } catch {
+    if (
+      cleanValue.startsWith("data:image") ||
+      cleanValue.startsWith("http://") ||
+      cleanValue.startsWith("https://") ||
+      cleanValue.startsWith("/uploads/")
+    ) {
+      return [cleanValue];
+    }
+
     return fallback;
   }
 }
 
+function getImagenesCancha(cancha: any): string[] {
+  const principal = cancha.imagen_principal
+    ? [String(cancha.imagen_principal).trim()]
+    : [];
+
+  const secundarias = parseJsonField(cancha.imagenes);
+
+  return [...principal, ...secundarias]
+    .filter(Boolean)
+    .filter((img, index, array) => array.indexOf(img) === index);
+}
+
+function getInitials(name: string) {
+  return name
+    .trim()
+    .split(" ")
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("");
+}
 
 function getUsuarioSesion(): Usuario | undefined {
   try {
     const raw = localStorage.getItem("communifield_user");
-
     if (!raw) return undefined;
 
     const user = JSON.parse(raw);
@@ -59,15 +86,6 @@ function getUsuarioSesion(): Usuario | undefined {
   }
 }
 
-function getInitials(name: string) {
-  return name
-    .trim()
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() || "")
-    .join("");
-}
-
 function usuarioPuedeModificarResena(usuario: Usuario | undefined, resena: any) {
   if (!usuario) return false;
 
@@ -77,20 +95,18 @@ function usuarioPuedeModificarResena(usuario: Usuario | undefined, resena: any) 
 function Galeria({ cancha }: GaleriaProps) {
   const [miniActiva, setMiniActiva] = useState(0);
 
-  const imagenes = [
-    cancha.imagen_principal,
-    ...(Array.isArray(cancha.imagenes) ? cancha.imagenes : []),
-  ]
-    .filter(Boolean)
-    .filter((img, index, array) => array.indexOf(img) === index);
-
+  const imagenes = getImagenesCancha(cancha);
   const imagenPrincipal = imagenes[miniActiva] || "";
+
+  useEffect(() => {
+    setMiniActiva(0);
+  }, [cancha?.id_espacio]);
 
   return (
     <section className="galeria">
       <div className="galeria-principal">
         {imagenPrincipal ? (
-          <img src={imagenPrincipal} alt={cancha.nombre} />
+          <img src={imagenPrincipal} alt={cancha.nombre || "Cancha"} />
         ) : (
           <div className="galeria-placeholder">
             <p>Sin imagen disponible</p>
@@ -101,13 +117,14 @@ function Galeria({ cancha }: GaleriaProps) {
       {imagenes.length > 1 && (
         <div className="galeria-miniaturas">
           {imagenes.map((img: string, i: number) => (
-            <div
-              key={i}
+            <button
+              key={`${img}-${i}`}
+              type="button"
               className={`miniatura${miniActiva === i ? " active" : ""}`}
               onClick={() => setMiniActiva(i)}
             >
               <img src={img} alt={`Vista ${i + 1}`} />
-            </div>
+            </button>
           ))}
         </div>
       )}
@@ -116,10 +133,12 @@ function Galeria({ cancha }: GaleriaProps) {
 }
 
 function Estrellas({ valor }: { valor: number }) {
+  const rating = Math.max(0, Math.min(5, Math.floor(Number(valor) || 0)));
+
   return (
     <>
-      {"★".repeat(Math.floor(valor))}
-      {"☆".repeat(5 - Math.floor(valor))}
+      {"★".repeat(rating)}
+      {"☆".repeat(5 - rating)}
     </>
   );
 }
@@ -151,26 +170,23 @@ export default function CanchaPage() {
       caracteristicas: parseJsonField(data.caracteristicas),
       horarios: parseJsonField(data.horarios),
       resenas: parseJsonField(data.resenas),
-      disponible_hoy:
-        data.estado === "activo" && Boolean(data.disponible_hoy),
+      disponible_hoy: data.estado === "activo" && Boolean(data.disponible_hoy),
     };
   }
 
   async function cargarCancha() {
-    fetch(`/api/canchas/${id}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("No se pudo cargar la cancha");
-        }
+    try {
+      const res = await fetch(`/api/canchas/${id}`);
 
-        return res.json();
-      })
-      .then((data) => {
-        setCancha(formatearCancha(data));
-      })
-      .catch((error) => {
-        console.error(error);
-      });
+      if (!res.ok) {
+        throw new Error("No se pudo cargar la cancha");
+      }
+
+      const data = await res.json();
+      setCancha(formatearCancha(data));
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   useEffect(() => {
@@ -220,7 +236,7 @@ export default function CanchaPage() {
       setTextoResena("");
       setEstrellas(5);
       setMensajeResena("Reseña publicada correctamente.");
-    } catch (error) {
+    } catch {
       setMensajeResena("No se pudo publicar la reseña.");
     } finally {
       setEnviandoResena(false);
@@ -267,14 +283,13 @@ export default function CanchaPage() {
       setCancha(formatearCancha(data));
       cancelarEdicion();
       setMensajeResena("Reseña editada correctamente.");
-    } catch (error) {
+    } catch {
       setMensajeResena("No se pudo editar la reseña.");
     }
   }
 
   async function borrarResena(index: number) {
     const confirmar = window.confirm("¿Seguro que quieres borrar esta reseña?");
-
     if (!confirmar) return;
 
     try {
@@ -296,27 +311,17 @@ export default function CanchaPage() {
 
       setCancha(formatearCancha(data));
       setMensajeResena("Reseña eliminada correctamente.");
-    } catch (error) {
+    } catch {
       setMensajeResena("No se pudo eliminar la reseña.");
     }
   }
 
   if (!cancha) {
-  return <p>Cargando...</p>;
-}
+    return <p>Cargando...</p>;
+  }
 
-const puedeReservar =
-  cancha.estado === "activo" &&
-  Boolean(cancha.disponible_hoy);
-
-return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        minHeight: "100vh",
-      }}
-    >
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <Header usuario={usuario} />
 
       <main className="cancha-main">
@@ -346,9 +351,7 @@ return (
                   <span className="badge badge-tipo">{cancha.tipo}</span>
 
                   {cancha.estado === "activo" && cancha.disponible_hoy && (
-                    <span className="badge badge-disponible">
-                      Disponible hoy
-                    </span>
+                    <span className="badge badge-disponible">Disponible hoy</span>
                   )}
                 </div>
 
@@ -376,28 +379,28 @@ return (
             <div className="seccion">
               <h2 className="seccion-titulo">Descripción</h2>
 
-              {(cancha.descripcion || []).map((parrafo: string, i: number) => (
-                <p key={i} className="cancha-desc">
-                  {parrafo}
-                </p>
-              ))}
+              {(cancha.descripcion || []).length > 0 ? (
+                cancha.descripcion.map((parrafo: string, i: number) => (
+                  <p key={i} className="cancha-desc">
+                    {parrafo}
+                  </p>
+                ))
+              ) : (
+                <p className="cancha-desc">No hay descripción registrada.</p>
+              )}
             </div>
 
             <div className="seccion">
               <h2 className="seccion-titulo">Características</h2>
 
               {(cancha.caracteristicas || []).length > 0 ? (
-                (cancha.caracteristicas || []).map(
-                  (caracteristica: string, i: number) => (
-                    <p key={i} className="cancha-desc">
-                      {caracteristica}
-                    </p>
-                  )
-                )
+                cancha.caracteristicas.map((caracteristica: string, i: number) => (
+                  <p key={i} className="cancha-desc">
+                    {caracteristica}
+                  </p>
+                ))
               ) : (
-                <p className="cancha-desc">
-                  No hay características registradas.
-                </p>
+                <p className="cancha-desc">No hay características registradas.</p>
               )}
             </div>
 
@@ -503,10 +506,7 @@ return (
                           </label>
 
                           <div className="reseña-actions">
-                            <button
-                              type="button"
-                              onClick={() => guardarEdicion(index)}
-                            >
+                            <button type="button" onClick={() => guardarEdicion(index)}>
                               Guardar
                             </button>
 
@@ -528,10 +528,7 @@ return (
                                 Editar
                               </button>
 
-                              <button
-                                type="button"
-                                onClick={() => borrarResena(index)}
-                              >
+                              <button type="button" onClick={() => borrarResena(index)}>
                                 Borrar
                               </button>
                             </div>

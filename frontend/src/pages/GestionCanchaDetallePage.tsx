@@ -442,10 +442,11 @@ const imageGrid: React.CSSProperties = {
 
 const secondaryImage: React.CSSProperties = {
   width: "100%",
-  height: 160,
-  objectFit: "cover",
+  maxHeight: 250,
+  objectFit: "contain",
   borderRadius: 12,
   border: "1px solid rgba(0,171,0,0.18)",
+  background: "#edf7ed",
 };
 
 const reviewCard: React.CSSProperties = {

@@ -508,16 +508,7 @@ export const UserManagement: React.FC = () => {
     ))}
   </section>
 )}
-            <section className="users-grid">
-              {filteredUsers.map((user) => (
-                <UserCard
-                  key={user.user_id}
-                  user={user}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              ))}
-            </section>
+        
 
             <section className="pagination-section">
               {!lastPage ? (
