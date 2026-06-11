@@ -517,9 +517,14 @@ export default function Header({ usuario }: HeaderProps) {
   const tipoUsuario = user?.type || user?.Tipo;
 
   return tipoUsuario === "organizer" ? (
-    <a href="/gestor/mis-canchas" className="menu-item">
-      Gestión de mis canchas
-    </a>
+    <>
+      <a href="/gestor/dashboard" className="menu-item">
+        Dashboard
+      </a>
+      <a href="/gestor/mis-canchas" className="menu-item">
+        Gestión de mis canchas
+      </a>
+    </>
   ) : (
     <a href="#" className="menu-item">
       Mis reservas

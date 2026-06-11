@@ -305,10 +305,6 @@ export default function CanchaPage() {
   return <p>Cargando...</p>;
 }
 
-const puedeReservar =
-  cancha.estado === "activo" &&
-  Boolean(cancha.disponible_hoy);
-
 return (
     <div
       style={{

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { LogOut } from "lucide-react";
 import {
   createUser,
   deleteUser,
@@ -10,6 +11,7 @@ import type { User, UserFormPayload, UserType } from "../../services/userService
 import { UserCard } from "./UserCard";
 import { AdminAssistant } from "./AdminAssistant";
 import { CourtManagement } from "./CourtManagement";
+import { AdminDashboard } from "../dashboard/AdminDashboard";
 import "./UserManagement.css";
 
 const emptyForm: UserFormPayload = {
@@ -27,8 +29,8 @@ const userTypeOptions: UserType[] = ["player", "organizer", "admin"];
 
 export const UserManagement: React.FC = () => {
   const [activeSection, setActiveSection] = useState<
-    "users" | "courts" | "assistant"
-  >("users");
+    "dashboard" | "users" | "courts" | "assistant"
+  >("dashboard");
 
   const [users, setUsers] = useState<User[]>([]);
   const [page, setPage] = useState(0);
@@ -265,6 +267,13 @@ export const UserManagement: React.FC = () => {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("communifield_user");
+    localStorage.removeItem("token");
+    localStorage.removeItem("communifield_token");
+    window.location.href = "/login";
+  };
+
   return (
     <div className="dashboard-layout">
       <aside className="sidebar">
@@ -275,7 +284,13 @@ export const UserManagement: React.FC = () => {
           </div>
 
           <nav className="sidebar-menu" aria-label="Admin sections">
-            <button type="button">Dashboard</button>
+            <button
+              type="button"
+              className={activeSection === "dashboard" ? "active" : ""}
+              onClick={() => setActiveSection("dashboard")}
+            >
+              Dashboard
+            </button>
 
             <button
               type="button"
@@ -316,6 +331,8 @@ export const UserManagement: React.FC = () => {
             />
           ) : activeSection === "courts" ? (
             <div className="topbar-title">Gestión de Canchas</div>
+          ) : activeSection === "dashboard" ? (
+            <div className="topbar-title">Dashboard administrativo</div>
           ) : (
             <div className="topbar-title">Asistente IA</div>
           )}
@@ -327,10 +344,22 @@ export const UserManagement: React.FC = () => {
             </div>
 
             <div className="profile-avatar">A</div>
+            <button
+              type="button"
+              className="admin-logout-btn"
+              onClick={handleLogout}
+              title="Cerrar sesión"
+              aria-label="Cerrar sesión"
+            >
+              <LogOut size={18} strokeWidth={2.4} />
+              <span>Cerrar sesión</span>
+            </button>
           </div>
         </header>
 
-        {activeSection === "users" ? (
+        {activeSection === "dashboard" ? (
+          <AdminDashboard />
+        ) : activeSection === "users" ? (
           <>
             <section className="page-header">
               <div>
