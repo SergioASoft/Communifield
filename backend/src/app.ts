@@ -7,6 +7,7 @@ import { testDatabaseConnection } from "./config/db";
 import { authRouter } from "./routes/auth.routes";
 import { userRouter } from "./routes/user.routes";
 import { assistantRouter } from "./routes/assistant.routes";
+import { dashboardRouter } from "./routes/dashboard.routes";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
 import canchaRouter from "./routes/cancharoutes";
 import friendRoutes from "./routes/friendroutes";
@@ -15,7 +16,7 @@ export const app = express();
 
 app.use(helmet());
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
-app.use(express.json({ limit: "6mb" }));
+app.use(express.json({ limit: "25mb" }));
 
 app.use(
   rateLimit({
@@ -51,11 +52,14 @@ app.get("/db-test", async (_req, res) => {
 app.use("/auth", authRouter);
 app.use("/users", userRouter);
 
+
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
 app.use("/api/assistant", assistantRouter);
 app.use("/api/canchas", canchaRouter);
 app.use("/api/friends", friendRoutes);
+app.use("/api/dashboard", dashboardRouter);
+
 
 app.use(notFound);
 app.use(errorHandler);

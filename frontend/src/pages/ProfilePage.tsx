@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { resolvePhotoUrl, type PhotoFilePayload } from "../services/userService";
-import "../styles/ProfilePage.css";
+import "../styles/Profilepage.css";
 
 type UserProfile = {
   id?: number;

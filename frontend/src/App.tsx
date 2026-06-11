@@ -12,7 +12,9 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyAccountPage from "./pages/VerifyAccountPage";
 import { UserManagement } from "./components/users/UserManagement";
 import { ManagerAssistantLauncher } from "./components/ManagerAssistantLauncher";
-
+import GestionMisCanchasPage from "./pages/GestionMisCanchasPage";
+import GestionCanchaDetallePage from "./pages/GestionCanchaDetallePage";
+import GestorDashboardPage from "./pages/GestorDashboardPage";
 
 export default function App() {
   return (
@@ -34,6 +36,11 @@ export default function App() {
 
         <Route path="/perfil" element={<ProfilePage />} />
         <Route path="/usuarios" element={<UserManagement />} />
+        <Route path="/gestor/dashboard" element={<GestorDashboardPage />} />
+        <Route path="/gestor/mis-canchas" element={<GestionMisCanchasPage />} />
+        <Route path="/gestion/mis-canchas/:id" element={<GestionCanchaDetallePage />} />
+        
+
       </Routes>
       <ManagerAssistantLauncher />
     </BrowserRouter>
