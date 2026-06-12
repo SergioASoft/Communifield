@@ -2,35 +2,45 @@ import { Request, Response } from "express";
 import { CanchaService } from "../services/canchaservice";
 
 export class CanchaController {
-  static async getAll(_req: Request, res: Response) {
-    try {
-      const canchas = await CanchaService.getAll();
-      res.json(canchas);
-    } catch (error) {
-      res.status(500).json({
-        message: "Error obteniendo canchas",
-      });
-    }
-  }
+  static async getAll(req: Request, res: Response) {
+  try {
+    const soloPublicas = req.query.public === "true";
 
+    const canchas = soloPublicas
+      ? await CanchaService.getAllPublic()
+      : await CanchaService.getAll();
+
+    res.json(canchas);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error obteniendo canchas",
+    });
+  }
+}
   static async getById(req: Request, res: Response) {
-    try {
-      const id = Number(req.params.id);
-      const cancha = await CanchaService.getById(id);
+  try {
+    const id = Number(req.params.id);
+    const soloPublica = req.query.public === "true";
 
-      if (!cancha) {
-        return res.status(404).json({
-          message: "Cancha no encontrada",
-        });
-      }
+    const cancha = soloPublica
+      ? await CanchaService.getByIdPublic(id)
+      : await CanchaService.getById(id);
 
-      res.json(cancha);
-    } catch (error) {
-      res.status(500).json({
-        message: "Error obteniendo cancha",
+    if (!cancha) {
+      return res.status(404).json({
+        message: soloPublica
+          ? "Cancha no disponible para reservas"
+          : "Cancha no encontrada",
       });
     }
+
+    res.json(cancha);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error obteniendo cancha",
+    });
   }
+}
 
   static async create(req: Request, res: Response) {
     try {

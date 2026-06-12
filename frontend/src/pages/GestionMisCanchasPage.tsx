@@ -23,6 +23,16 @@ interface Cancha {
   estado: string;
 }
 
+interface SuscripcionGestor {
+  estado: "sin_suscripcion" | "activa" | "vencida" | "cancelada";
+  suscrito: boolean;
+  id_suscripcion: number | null;
+  plan: string | null;
+  precio: number;
+  fecha_inicio: string | null;
+  fecha_fin: string | null;
+}
+
 const formInicial = {
   nombre: "",
   tipo: "",
@@ -64,9 +74,7 @@ function getUsuarioHeader(): Usuario | undefined {
 
 function parseJson(value: any, fallback: string[] = []): string[] {
   if (!value) return fallback;
-
   if (Array.isArray(value)) return value.filter(Boolean);
-
   if (typeof value !== "string") return fallback;
 
   const cleanValue = value.trim();
@@ -141,6 +149,11 @@ export default function GestionMisCanchasPage() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
+  const [suscripcion, setSuscripcion] =
+    useState<SuscripcionGestor | null>(null);
+  const [cargandoSuscripcion, setCargandoSuscripcion] = useState(true);
+  const [pagandoSuscripcion, setPagandoSuscripcion] = useState(false);
+
   async function cargarMisCanchas() {
     try {
       setCargando(true);
@@ -162,9 +175,96 @@ export default function GestionMisCanchasPage() {
     }
   }
 
+  async function cargarSuscripcion() {
+    try {
+      setCargandoSuscripcion(true);
+
+      const res = await fetch(`/api/suscripciones/gestor/${userId}`);
+
+      if (!res.ok) {
+        throw new Error("No se pudo consultar la suscripción");
+      }
+
+      const data = await res.json();
+      setSuscripcion(data);
+    } catch (err) {
+      console.error(err);
+      setSuscripcion(null);
+    } finally {
+      setCargandoSuscripcion(false);
+    }
+  }
+
+  async function confirmarPagoStripe(sessionId: string) {
+    try {
+      const res = await fetch("/api/suscripciones/confirmar-checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sessionId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "No se pudo confirmar el pago");
+      }
+
+      await cargarSuscripcion();
+      window.history.replaceState({}, "", "/gestion/mis-canchas");
+    } catch (err) {
+      console.error(err);
+      setError(
+        "El pago se realizó, pero no se pudo confirmar la suscripción. Recarga la página o revisa Stripe."
+      );
+    }
+  }
+
+  async function iniciarSuscripcion() {
+    try {
+      setPagandoSuscripcion(true);
+      setError("");
+
+      const res = await fetch("/api/suscripciones/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ gestorId: userId }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.detail || data.message || "No se pudo iniciar el pago");
+      }
+
+      if (!data.url) {
+        throw new Error("Stripe no devolvió la URL de pago");
+      }
+
+      window.location.href = data.url;
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "No se pudo iniciar la suscripción.");
+    } finally {
+      setPagandoSuscripcion(false);
+    }
+  }
+
   useEffect(() => {
     if (userId) {
       cargarMisCanchas();
+      cargarSuscripcion();
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("stripe_session_id");
+
+    if (userId && sessionId) {
+      confirmarPagoStripe(sessionId);
     }
   }, [userId]);
 
@@ -314,6 +414,49 @@ export default function GestionMisCanchasPage() {
           <p style={{ color: "#6e8f6e", fontWeight: 600 }}>
             Aquí solo aparecen las canchas creadas por tu usuario gestor.
           </p>
+        </section>
+
+        <section style={suscripcionPanelStyle}>
+          <div>
+            <p style={formTag}>SUSCRIPCIÓN DEL GESTOR</p>
+
+            <h2 style={{ margin: "4px 0", color: "#0e260e" }}>
+              {cargandoSuscripcion
+                ? "Consultando suscripción..."
+                : suscripcion?.suscrito
+                ? "Tu suscripción está activa"
+                : "Tus canchas aún no aparecen al público"}
+            </h2>
+
+            <p style={{ margin: 0, color: "#547654", fontWeight: 700 }}>
+              {suscripcion?.suscrito
+                ? `Plan ${
+                    suscripcion.plan || "mensual"
+                  }. Tus canchas activas ya pueden recibir reservas.`
+                : "Puedes crear y administrar canchas, pero solo se mostrarán en la plataforma cuando tengas una suscripción activa."}
+            </p>
+
+            {suscripcion?.fecha_fin && (
+              <p style={{ margin: "8px 0 0", color: "#6e8f6e", fontWeight: 700 }}>
+                Vence:{" "}
+                {new Date(suscripcion.fecha_fin).toLocaleDateString("es-CO")}
+              </p>
+            )}
+          </div>
+
+          {!suscripcion?.suscrito && (
+            <button
+              type="button"
+              onClick={iniciarSuscripcion}
+              disabled={pagandoSuscripcion || cargandoSuscripcion}
+              style={{
+                ...primaryButton,
+                opacity: pagandoSuscripcion || cargandoSuscripcion ? 0.65 : 1,
+              }}
+            >
+              {pagandoSuscripcion ? "Abriendo Stripe..." : "Suscribirme"}
+            </button>
+          )}
         </section>
 
         <section style={searchPanel}>
@@ -712,6 +855,19 @@ const titleStyle: React.CSSProperties = {
   letterSpacing: 2,
   margin: "10px 0",
   color: "#0e260e",
+};
+
+const suscripcionPanelStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 18,
+  flexWrap: "wrap",
+  background: "#edf7ed",
+  border: "1.5px solid rgba(0,171,0,0.18)",
+  padding: 18,
+  borderRadius: 16,
+  marginBottom: 20,
 };
 
 const searchPanel: React.CSSProperties = {

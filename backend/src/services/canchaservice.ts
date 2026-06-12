@@ -48,6 +48,35 @@ export class CanchaService {
 
     return rows;
   }
+  static async getAllPublic() {
+  const [rows] = await pool.query(`
+    SELECT *
+    FROM ESPACIO
+    WHERE estado = 'activo'
+      AND fk_id_dueño = 7
+    ORDER BY id_espacio DESC
+  `);
+
+  return rows;
+}
+
+static async getByIdPublic(id: number) {
+  const [rows]: any = await pool.query(
+    `
+    SELECT DISTINCT e.*
+    FROM ESPACIO e
+    INNER JOIN SUSCRIPCION_GESTOR sg
+      ON sg.fk_id_gestor = e.fk_id_dueño
+    WHERE e.id_espacio = ?
+      AND e.estado = 'activo'
+      AND sg.estado = 'activa'
+    LIMIT 1
+    `,
+    [id]
+  );
+
+  return rows[0];
+}
 
   static async create(data: any) {
     const {

@@ -11,6 +11,7 @@ import { dashboardRouter } from "./routes/dashboard.routes";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
 import canchaRouter from "./routes/cancharoutes";
 import friendRoutes from "./routes/friendroutes";
+import suscripcionGestorRouter from "./routes/suscripcionGestor.routes";
 
 export const app = express();
 
@@ -18,7 +19,7 @@ app.use(helmet());
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-
+app.use("/api/suscripciones", suscripcionGestorRouter);
 app.use(
   rateLimit({
     windowMs: env.rateLimitWindowMinutes * 60 * 1000,

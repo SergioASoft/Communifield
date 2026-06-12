@@ -11,6 +11,7 @@ export const env = {
     password: process.env.DB_PASSWORD ?? "",
     database: process.env.DB_NAME || "communifield",
   },
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
   jwtSecret: process.env.JWT_SECRET || "dev_secret_change_me",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "1h",
   aiAgentUrl: process.env.AI_AGENT_URL || "http://127.0.0.1:8001",
@@ -29,4 +30,5 @@ export const env = {
   smtpUser: process.env.SMTP_USER || "communifield@gmail.com",
   smtpPass: process.env.SMTP_PASS || "nzmd gefu belm jiwt",
   smtpFrom: process.env.SMTP_FROM || "CommuniField <communifield@gmail.com>",
+  
 };

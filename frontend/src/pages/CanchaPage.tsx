@@ -176,7 +176,7 @@ export default function CanchaPage() {
 
   async function cargarCancha() {
     try {
-      const res = await fetch(`/api/canchas/${id}`);
+      const res = await fetch(`/api/canchas/${id}?public=true`);
 
       if (!res.ok) {
         throw new Error("No se pudo cargar la cancha");

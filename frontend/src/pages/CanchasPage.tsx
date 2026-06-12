@@ -91,7 +91,7 @@ export default function CanchasPage() {
       setCargando(true);
       setError("");
 
-      const res = await fetch("/api/canchas");
+      const res = await fetch("/api/canchas?public=true");
 
       if (!res.ok) {
         throw new Error("No se pudieron cargar las canchas");
