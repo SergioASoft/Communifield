@@ -132,6 +132,7 @@ export default function CanchaPage() {
   const [textoResena, setTextoResena] = useState("");
   const [enviandoResena, setEnviandoResena] = useState(false);
   const [mensajeResena, setMensajeResena] = useState("");
+  const [mensajeReserva, setMensajeReserva] = useState("");
 
   const [editandoIndex, setEditandoIndex] = useState<number | null>(null);
   const [textoEditado, setTextoEditado] = useState("");
@@ -176,6 +177,56 @@ export default function CanchaPage() {
   useEffect(() => {
     cargarCancha();
   }, [id]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const estadoReserva = params.get("reserva");
+    const sessionId = params.get("session_id");
+    const eventoId = params.get("eventoId");
+
+    async function procesarRetornoPago() {
+      if (estadoReserva === "success" && sessionId) {
+        setMensajeReserva("Confirmando pago con Stripe...");
+
+        try {
+          const res = await fetch("/api/reservas/confirmar", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.message || "No se pudo confirmar el pago");
+          }
+
+          setMensajeReserva("Reserva confirmada. Tu pago fue aprobado.");
+          window.history.replaceState({}, "", window.location.pathname);
+        } catch (error: any) {
+          setMensajeReserva(error.message || "No se pudo confirmar la reserva.");
+        }
+      }
+
+      if (estadoReserva === "cancelada" && eventoId) {
+        setMensajeReserva("Pago cancelado. Liberando el horario...");
+
+        try {
+          await fetch(`/api/reservas/cancelar/${eventoId}`, {
+            method: "POST",
+          });
+          setMensajeReserva("Pago cancelado. El horario quedo disponible.");
+          window.history.replaceState({}, "", window.location.pathname);
+        } catch {
+          setMensajeReserva("Pago cancelado. Revisa la disponibilidad antes de intentar otra vez.");
+        }
+      }
+    }
+
+    procesarRetornoPago();
+  }, []);
 
   async function enviarResena(e: React.FormEvent) {
     e.preventDefault();
@@ -333,6 +384,12 @@ return (
         </nav>
 
         <Galeria cancha={cancha} />
+
+        {mensajeReserva && (
+          <div className="reserva-alerta">
+            {mensajeReserva}
+          </div>
+        )}
 
         <div className="cancha-layout">
           <div className="cancha-info">

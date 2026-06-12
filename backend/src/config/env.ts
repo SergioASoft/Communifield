@@ -29,4 +29,9 @@ export const env = {
   smtpUser: process.env.SMTP_USER || "communifield@gmail.com",
   smtpPass: process.env.SMTP_PASS || "nzmd gefu belm jiwt",
   smtpFrom: process.env.SMTP_FROM || "CommuniField <communifield@gmail.com>",
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || "",
+    currency: process.env.STRIPE_CURRENCY || "cop",
+    checkoutTtlMinutes: Number(process.env.STRIPE_CHECKOUT_TTL_MINUTES || 15),
+  },
 };
