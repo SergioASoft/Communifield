@@ -11,6 +11,7 @@ import { dashboardRouter } from "./routes/dashboard.routes";
 import { errorHandler, notFound } from "./middlewares/error.middleware";
 import canchaRouter from "./routes/cancharoutes";
 import friendRoutes from "./routes/friendroutes";
+import reservaRouter from "./routes/reserva.routes";
 
 export const app = express();
 
@@ -57,6 +58,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
 app.use("/api/assistant", assistantRouter);
 app.use("/api/canchas", canchaRouter);
+app.use("/api/reservas", reservaRouter);
 app.use("/api/friends", friendRoutes);
 app.use("/api/dashboard", dashboardRouter);
 

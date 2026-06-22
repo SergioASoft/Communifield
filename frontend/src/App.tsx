@@ -15,6 +15,7 @@ import { ManagerAssistantLauncher } from "./components/ManagerAssistantLauncher"
 import GestionMisCanchasPage from "./pages/GestionMisCanchasPage";
 import GestionCanchaDetallePage from "./pages/GestionCanchaDetallePage";
 import GestorDashboardPage from "./pages/GestorDashboardPage";
+import MisReservasPage from "./pages/MisReservasPage";
 
 export default function App() {
   return (
@@ -35,6 +36,7 @@ export default function App() {
         />
 
         <Route path="/perfil" element={<ProfilePage />} />
+        <Route path="/mis-reservas" element={<MisReservasPage />} />
         <Route path="/usuarios" element={<UserManagement />} />
         <Route path="/gestor/dashboard" element={<GestorDashboardPage />} />
         <Route path="/gestor/mis-canchas" element={<GestionMisCanchasPage />} />

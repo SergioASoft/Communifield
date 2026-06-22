@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { Usuario } from "../types";
+import { HORARIOS_SELECT } from "../data/canchaData";
 
 interface Resena {
   nombre?: string;
@@ -121,6 +122,14 @@ export default function GestionCanchaDetallePage() {
   const [cancha, setCancha] = useState<Cancha | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [openSlotForm, setOpenSlotForm] = useState({
+    fecha: "",
+    hora: "",
+    duracion: 1,
+    participantes: 10,
+  });
+  const [openSlotMessage, setOpenSlotMessage] = useState("");
+  const [creandoOpenSlot, setCreandoOpenSlot] = useState(false);
 
   async function cargarCancha() {
     try {
@@ -146,6 +155,52 @@ export default function GestionCanchaDetallePage() {
   useEffect(() => {
     if (id) cargarCancha();
   }, [id]);
+
+  async function crearEspacioAbierto(e: React.FormEvent) {
+    e.preventDefault();
+
+    const token = localStorage.getItem("communifield_token");
+
+    if (!token) {
+      setOpenSlotMessage("Inicia sesion como gestor para crear espacios abiertos.");
+      return;
+    }
+
+    setCreandoOpenSlot(true);
+    setOpenSlotMessage("");
+
+    try {
+      const res = await fetch(`/api/reservas/canchas/${id}/espacios-abiertos`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(openSlotForm),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.message || "No se pudo crear el espacio abierto");
+      }
+
+      const cuota = Number(data.espacioAbierto?.cuotaParticipante || 0).toLocaleString(
+        "es-CO",
+        {
+          style: "currency",
+          currency: "COP",
+          maximumFractionDigits: 0,
+        }
+      );
+
+      setOpenSlotMessage(`Espacio abierto creado. Cuota por jugador: ${cuota}.`);
+    } catch (err: any) {
+      setOpenSlotMessage(err.message || "No se pudo crear el espacio abierto.");
+    } finally {
+      setCreandoOpenSlot(false);
+    }
+  }
 
   if (cargando) {
     return (
@@ -245,6 +300,95 @@ export default function GestionCanchaDetallePage() {
               <strong>Total reseñas:</strong> {cancha.total_resenas || 0}
             </p>
           </div>
+        </section>
+
+        <section style={card}>
+          <h2>Espacios abiertos</h2>
+
+          <form style={openSlotFormStyle} onSubmit={crearEspacioAbierto}>
+            <label style={formLabel}>
+              Fecha
+              <input
+                type="date"
+                required
+                min={new Date().toISOString().split("T")[0]}
+                value={openSlotForm.fecha}
+                onChange={(e) =>
+                  setOpenSlotForm({ ...openSlotForm, fecha: e.target.value })
+                }
+                style={formInput}
+              />
+            </label>
+
+            <label style={formLabel}>
+              Hora
+              <select
+                required
+                value={openSlotForm.hora}
+                onChange={(e) =>
+                  setOpenSlotForm({ ...openSlotForm, hora: e.target.value })
+                }
+                style={formInput}
+              >
+                <option value="">Selecciona un horario</option>
+                {HORARIOS_SELECT.map((label) => {
+                  const value = label.match(/\d{2}:\d{2}/)?.[0] || label;
+
+                  return (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+
+            <label style={formLabel}>
+              Duracion
+              <select
+                value={openSlotForm.duracion}
+                onChange={(e) =>
+                  setOpenSlotForm({
+                    ...openSlotForm,
+                    duracion: Number(e.target.value),
+                  })
+                }
+                style={formInput}
+              >
+                <option value={1}>1 hora</option>
+                <option value={2}>2 horas</option>
+                <option value={3}>3 horas</option>
+              </select>
+            </label>
+
+            <label style={formLabel}>
+              Participantes
+              <input
+                type="number"
+                min={2}
+                max={30}
+                required
+                value={openSlotForm.participantes}
+                onChange={(e) =>
+                  setOpenSlotForm({
+                    ...openSlotForm,
+                    participantes: Number(e.target.value),
+                  })
+                }
+                style={formInput}
+              />
+            </label>
+
+            <button type="submit" style={primaryButton} disabled={creandoOpenSlot}>
+              {creandoOpenSlot ? "Creando..." : "Crear espacio abierto"}
+            </button>
+          </form>
+
+          {openSlotMessage && (
+            <p style={{ color: "#008a00", fontWeight: 800, marginTop: 12 }}>
+              {openSlotMessage}
+            </p>
+          )}
         </section>
 
         <section style={card}>
@@ -418,6 +562,44 @@ const card: React.CSSProperties = {
   padding: 22,
   border: "1.5px solid rgba(0,171,0,0.18)",
   marginBottom: 18,
+};
+
+const openSlotFormStyle: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+  gap: 12,
+  alignItems: "end",
+};
+
+const formLabel: React.CSSProperties = {
+  color: "#0e260e",
+  display: "grid",
+  fontSize: 13,
+  fontWeight: 800,
+  gap: 6,
+};
+
+const formInput: React.CSSProperties = {
+  width: "100%",
+  marginTop: 6,
+  border: "1.5px solid rgba(0,171,0,0.18)",
+  borderRadius: 9,
+  background: "#edf7ed",
+  color: "#0e260e",
+  fontFamily: "'Outfit', sans-serif",
+  fontWeight: 700,
+  outline: "none",
+  padding: "11px 12px",
+};
+
+const primaryButton: React.CSSProperties = {
+  background: "#00ab00",
+  color: "white",
+  border: "none",
+  borderRadius: 9,
+  padding: "13px 18px",
+  fontWeight: 800,
+  cursor: "pointer",
 };
 
 const chips: React.CSSProperties = {
