@@ -496,6 +496,58 @@
   text-transform: uppercase;
 }
 
+.espacios-abiertos-lista {
+  background: rgba(178, 209, 0, 0.12);
+  border: 1.5px solid rgba(178, 209, 0, 0.35);
+  border-radius: 10px;
+  margin: -4px 0 16px;
+  padding: 12px;
+}
+
+.espacio-abierto-card {
+  align-items: center;
+  background: var(--white);
+  border: 1.5px solid rgba(0, 171, 0, 0.18);
+  border-radius: 10px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr auto auto;
+  margin-top: 9px;
+  padding: 11px;
+}
+
+.espacio-abierto-card div {
+  display: grid;
+  gap: 2px;
+}
+
+.espacio-abierto-card strong {
+  color: var(--text-dark);
+  font-size: 13px;
+}
+
+.espacio-abierto-card span {
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.espacio-abierto-card button {
+  background: var(--green);
+  border: none;
+  border-radius: 8px;
+  color: var(--white);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 9px 12px;
+}
+
+.espacio-abierto-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .duracion-opciones { display: flex; gap: 8px; }
 .duracion-btn {
   flex: 1;

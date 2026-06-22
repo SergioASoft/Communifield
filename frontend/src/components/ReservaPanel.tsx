@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ComponentType, type FormEvent } from
 import { CheckCircle2, CreditCard, Landmark, Lock, Smartphone, X } from "lucide-react";
 
 import { HORARIOS_SELECT } from "../data/canchaData";
+import { reservaRealtime } from "../services/reservaRealtime";
 
 interface ReservaPanelProps {
   cancha: any;
@@ -16,6 +17,20 @@ type ReservaOcupada = {
   fechaInicio: string;
   fechaFin: string;
   estado: "pendiente" | "pagado";
+};
+
+type EspacioAbierto = {
+  idEspacioAbierto: number;
+  idEvento: number;
+  estado: "abierto" | "completo";
+  fechaInicio: string;
+  fechaFin: string;
+  precioTotal: number;
+  cuotaParticipante: number;
+  maxParticipantes: number;
+  participantesActuales: number;
+  cuposDisponibles: number;
+  inscrito?: boolean;
 };
 
 type ApiErrorBody = {
@@ -143,8 +158,10 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
   const [reservasOcupadas, setReservasOcupadas] = useState<ReservaOcupada[]>([]);
+  const [espaciosAbiertos, setEspaciosAbiertos] = useState<EspacioAbierto[]>([]);
   const [mensajeReserva, setMensajeReserva] = useState("");
   const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
+  const [espacioSeleccionado, setEspacioSeleccionado] = useState<EspacioAbierto | null>(null);
   const [metodoPago, setMetodoPago] = useState<MetodoPago>("nequi");
   const [pagoForm, setPagoForm] = useState<PagoForm>(initialPagoForm);
   const [procesandoPago, setProcesandoPago] = useState(false);
@@ -157,6 +174,7 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
   const altaDemanda = Boolean(cancha.altaDemanda || false);
   const subtotal = precioHora * duracion;
   const total = subtotal + tasaServicio;
+  const totalPago = espacioSeleccionado ? espacioSeleccionado.cuotaParticipante : total;
   const fechaMin = new Date().toISOString().split("T")[0];
   const canchaId = Number(cancha.id_espacio || cancha.id);
 
@@ -217,8 +235,12 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
     }
 
     try {
+      const token = localStorage.getItem("communifield_token");
       const res = await fetch(
-        `/api/reservas/canchas/${canchaId}/disponibilidad?fecha=${fechaReserva}`
+        `/api/reservas/canchas/${canchaId}/disponibilidad?fecha=${fechaReserva}`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
       );
       const data = await readJsonResponse(res);
 
@@ -231,12 +253,14 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
       }
 
       setReservasOcupadas(data.reservas || []);
+      setEspaciosAbiertos(data.espaciosAbiertos || []);
     } catch (error: any) {
       logReservaError("Error consultando disponibilidad", error, {
         canchaId,
         fechaReserva,
       });
       setMensajeReserva(error.message || "No se pudo consultar disponibilidad.");
+      setEspaciosAbiertos([]);
     }
   }
 
@@ -245,30 +269,15 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
   }, [canchaId, fecha]);
 
   useEffect(() => {
-    const source = new EventSource("/api/reservas/stream");
-
-    const onUpdate = (event: MessageEvent) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (Number(data.canchaId) === canchaId && (!fecha || data.fecha === fecha)) {
-          cargarDisponibilidad(fecha);
-        }
-      } catch (error) {
-        console.error("[ReservaPanel] Evento SSE de reservas no tiene JSON valido", {
-          raw: event.data,
-          error,
-        });
+    return reservaRealtime.subscribe((event) => {
+      if (
+        event.type !== "connected" &&
+        Number(event.canchaId) === canchaId &&
+        (!fecha || event.fecha === fecha)
+      ) {
         cargarDisponibilidad(fecha);
       }
-    };
-
-    source.addEventListener("availability-updated", onUpdate);
-    source.addEventListener("reservation-paid", onUpdate);
-    source.addEventListener("reservation-cancelled", onUpdate);
-
-    return () => {
-      source.close();
-    };
+    });
   }, [canchaId, fecha]);
 
   function abrirModalPago() {
@@ -291,6 +300,31 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
 
     setMensajeReserva("");
     setMensajePago("");
+    setEspacioSeleccionado(null);
+    setModalPagoAbierto(true);
+  }
+
+  function abrirPagoEspacioAbierto(espacio: EspacioAbierto) {
+    const token = localStorage.getItem("communifield_token");
+
+    if (!token) {
+      setMensajeReserva("Debes iniciar sesion para unirte a un espacio abierto.");
+      return;
+    }
+
+    if (espacio.inscrito) {
+      setMensajeReserva("Ya estas inscrito en este espacio abierto.");
+      return;
+    }
+
+    if (espacio.estado !== "abierto" || espacio.cuposDisponibles <= 0) {
+      setMensajeReserva("Este espacio abierto ya no tiene cupos disponibles.");
+      return;
+    }
+
+    setMensajeReserva("");
+    setMensajePago("");
+    setEspacioSeleccionado(espacio);
     setModalPagoAbierto(true);
   }
 
@@ -342,16 +376,25 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
     setMensajeReserva("");
     setMensajePago("");
 
-    const payload = {
+    const payload = espacioSeleccionado
+      ? {
+          metodoPago,
+          datosPago: getDatosPago(),
+        }
+      : {
       fecha,
       hora,
       duracion,
       metodoPago,
       datosPago: getDatosPago(),
-    };
+        };
 
     try {
-      const res = await fetch(`/api/reservas/canchas/${canchaId}/pagar`, {
+      const endpoint = espacioSeleccionado
+        ? `/api/reservas/espacios-abiertos/${espacioSeleccionado.idEspacioAbierto}/unirse`
+        : `/api/reservas/canchas/${canchaId}/pagar`;
+
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -371,9 +414,12 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
       }
 
       setMensajeReserva(
-        `Reserva confirmada. ${data.message || "Pago aprobado"} Ref: ${data.referencia}`
+        espacioSeleccionado
+          ? `Te uniste al espacio abierto. ${data.message || "Pago aprobado"} Ref: ${data.referencia}`
+          : `Reserva confirmada. ${data.message || "Pago aprobado"} Ref: ${data.referencia}`
       );
       setModalPagoAbierto(false);
+      setEspacioSeleccionado(null);
       setPagoForm(initialPagoForm);
       await cargarDisponibilidad();
     } catch (error: any) {
@@ -631,6 +677,45 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
           </div>
         )}
 
+        {fecha && espaciosAbiertos.length > 0 && (
+          <div className="espacios-abiertos-lista">
+            <div className="horarios-ocupados-header">
+              <span>Espacios abiertos</span>
+              <strong>{espaciosAbiertos.length}</strong>
+            </div>
+
+            {espaciosAbiertos.map((espacio) => (
+              <article key={espacio.idEspacioAbierto} className="espacio-abierto-card">
+                <div>
+                  <strong>
+                    {formatTime(espacio.fechaInicio)} - {formatTime(espacio.fechaFin)}
+                  </strong>
+                  <span>
+                    {espacio.participantesActuales}/{espacio.maxParticipantes} jugadores
+                  </span>
+                </div>
+
+                <div>
+                  <strong>{formatCOP(espacio.cuotaParticipante)}</strong>
+                  <span>{espacio.cuposDisponibles} cupos</span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={
+                    Boolean(espacio.inscrito) ||
+                    espacio.estado !== "abierto" ||
+                    espacio.cuposDisponibles <= 0
+                  }
+                  onClick={() => abrirPagoEspacioAbierto(espacio)}
+                >
+                  {espacio.inscrito ? "Inscrito" : "Unirme"}
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+
         <div className="campo-grupo">
           <label className="campo-label">Duracion</label>
           <div className="duracion-opciones">
@@ -718,14 +803,18 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
 
             <div className="pago-resumen">
               <div>
-                <span>Fecha y hora</span>
+                <span>{espacioSeleccionado ? "Espacio abierto" : "Fecha y hora"}</span>
                 <strong>
-                  {fecha} - {hora}
+                  {espacioSeleccionado
+                    ? `${formatTime(espacioSeleccionado.fechaInicio)} - ${formatTime(
+                        espacioSeleccionado.fechaFin
+                      )}`
+                    : `${fecha} - ${hora}`}
                 </strong>
               </div>
               <div>
                 <span>Total</span>
-                <strong>{formatCOP(total)}</strong>
+                <strong>{formatCOP(totalPago)}</strong>
               </div>
             </div>
 

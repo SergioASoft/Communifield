@@ -19,6 +19,18 @@ type CrearPagoReservaInput = CrearReservaInput & {
   datosPago: PaymentPayload;
 };
 
+type CrearEspacioAbiertoInput = CrearReservaInput & {
+  gestorId: number;
+  participantes: number;
+};
+
+type UnirseEspacioAbiertoInput = {
+  espacioAbiertoId: number;
+  usuarioId: number;
+  metodoPago: string;
+  datosPago: PaymentPayload;
+};
+
 function parseHora(hora: string) {
   const match = hora.match(/(\d{2}):(\d{2})/);
 
@@ -90,6 +102,7 @@ async function cleanupExpiredHolds(connection: PoolConnection, canchaId: number)
     WHERE e.fk_id_espacio = ?
       AND p.estado = 'pendiente'
       AND p.fecha_pago < DATE_SUB(NOW(), INTERVAL ? MINUTE)
+      AND COALESCE(JSON_UNQUOTE(JSON_EXTRACT(e.evento_datos, '$.tipo')), '') != 'espacio_abierto'
     FOR UPDATE
     `,
     [canchaId, env.stripe.checkoutTtlMinutes]
@@ -146,14 +159,48 @@ function normalizeReservaError(error: any, context: Record<string, unknown>) {
 
   const message = getErrorMessage(error);
   const details = getErrorDetails(error);
+  const sqlMessage = String(details?.sqlMessage || "");
 
-  if (message.includes("referencia_externa") || details?.sqlMessage?.includes("referencia_externa")) {
+  if (message.includes("referencia_externa") || sqlMessage.includes("referencia_externa")) {
     return new AppError(
       "La base de datos no tiene la columna referencia_externa en PAGO. Ejecuta la migracion 003 o actualiza schema.sql.",
       {
         status: 500,
         code: "PAYMENT_SCHEMA_OUTDATED",
         details,
+        cause: error,
+      }
+    );
+  }
+
+  if (
+    message.includes("ESPACIO_ABIERTO") ||
+    sqlMessage.includes("ESPACIO_ABIERTO")
+  ) {
+    return new AppError(
+      "La base de datos no tiene las tablas de espacios abiertos. Ejecuta la migracion 005_espacios_abiertos_websockets_observer.sql.",
+      {
+        status: 500,
+        code: "OPEN_SLOT_SCHEMA_OUTDATED",
+        details: {
+          ...details,
+          context,
+        },
+        cause: error,
+      }
+    );
+  }
+
+  if (details?.code === "ER_BAD_FIELD_ERROR") {
+    return new AppError(
+      "La base de datos no coincide con el esquema esperado para reservas. Revisa las migraciones y columnas de ESPACIO/EVENTO/PAGO.",
+      {
+        status: 500,
+        code: "RESERVATION_SCHEMA_MISMATCH",
+        details: {
+          ...details,
+          context,
+        },
         cause: error,
       }
     );
@@ -181,7 +228,11 @@ function normalizeReservaError(error: any, context: Record<string, unknown>) {
   return new AppError("No se pudo completar la reserva por un error interno", {
     status: 500,
     code: "RESERVATION_PAYMENT_FAILED",
-    details,
+    details: {
+      ...details,
+      message,
+      context,
+    },
     cause: error,
   });
 }
@@ -236,7 +287,7 @@ export class ReservaService {
     }));
   }
 
-  static async getDisponibilidad(canchaId: number, fecha: string) {
+  static async getDisponibilidad(canchaId: number, fecha: string, usuarioId?: number) {
     const connection = await pool.getConnection();
 
     try {
@@ -245,7 +296,10 @@ export class ReservaService {
       await connection.commit();
     } catch (error) {
       await connection.rollback();
-      throw error;
+      logError("ReservaService.getDisponibilidad.cleanupExpiredHolds", error, {
+        canchaId,
+        fecha,
+      });
     } finally {
       connection.release();
     }
@@ -267,12 +321,380 @@ export class ReservaService {
       [canchaId, fecha]
     );
 
-    return rows.map((row: any) => ({
+    const reservas = rows.map((row: any) => ({
       idEvento: row.id_evento,
       fechaInicio: row.fecha_inic,
       fechaFin: row.fecha_fin,
       estado: row.estado_pago,
     }));
+
+    const [openRows]: any = await pool.query(
+      `
+      SELECT
+        ea.id_espacio_abierto,
+        ea.fk_id_evento,
+        ea.estado,
+        ea.precio_total,
+        ea.cuota_participante,
+        ea.max_participantes,
+        DATE_FORMAT(e.fecha_inic, '%Y-%m-%d %H:%i:%s') AS fecha_inic,
+        DATE_FORMAT(e.fecha_fin, '%Y-%m-%d %H:%i:%s') AS fecha_fin,
+        COUNT(CASE WHEN eap.estado = 'pagado' THEN 1 END) AS participantes_actuales,
+        MAX(CASE
+          WHEN eap.fk_id_usuario = ? AND eap.estado IN ('pendiente', 'pagado')
+          THEN 1
+          ELSE 0
+        END) AS inscrito
+      FROM ESPACIO_ABIERTO ea
+      INNER JOIN EVENTO e ON e.id_evento = ea.fk_id_evento
+      LEFT JOIN ESPACIO_ABIERTO_PARTICIPANTE eap
+        ON eap.fk_id_espacio_abierto = ea.id_espacio_abierto
+      WHERE e.fk_id_espacio = ?
+        AND DATE(e.fecha_inic) = ?
+        AND ea.estado IN ('abierto', 'completo')
+      GROUP BY
+        ea.id_espacio_abierto,
+        ea.fk_id_evento,
+        ea.estado,
+        ea.precio_total,
+        ea.cuota_participante,
+        ea.max_participantes,
+        e.fecha_inic,
+        e.fecha_fin
+      ORDER BY e.fecha_inic ASC
+      `,
+      [usuarioId || 0, canchaId, fecha]
+    );
+
+    return {
+      reservas,
+      espaciosAbiertos: openRows.map((row: any) => ({
+        idEspacioAbierto: row.id_espacio_abierto,
+        idEvento: row.fk_id_evento,
+        estado: row.estado,
+        fechaInicio: row.fecha_inic,
+        fechaFin: row.fecha_fin,
+        precioTotal: Number(row.precio_total || 0),
+        cuotaParticipante: Number(row.cuota_participante || 0),
+        maxParticipantes: Number(row.max_participantes || 0),
+        participantesActuales: Number(row.participantes_actuales || 0),
+        inscrito: Boolean(row.inscrito),
+        cuposDisponibles:
+          Number(row.max_participantes || 0) - Number(row.participantes_actuales || 0),
+      })),
+    };
+  }
+
+  static async crearEspacioAbierto(input: CrearEspacioAbiertoInput) {
+    const participantes = Number(input.participantes);
+
+    if (!Number.isInteger(participantes) || participantes < 2 || participantes > 30) {
+      throw new AppError("Define una cantidad de participantes entre 2 y 30", {
+        status: 400,
+        code: "INVALID_OPEN_SLOT_CAPACITY",
+        details: { participantes },
+      });
+    }
+
+    const { fechaInicio, fechaFin } = buildStartEnd(
+      input.fecha,
+      input.hora,
+      input.duracion
+    );
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      const [canchaRows]: any = await connection.query(
+        `
+        SELECT id_espacio, nombre, precio_hora, estado, fk_id_dueño AS owner_id
+        FROM ESPACIO
+        WHERE id_espacio = ?
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [input.canchaId]
+      );
+
+      const cancha = canchaRows[0];
+
+      if (!cancha) {
+        throw new AppError("Cancha no encontrada", {
+          status: 404,
+          code: "COURT_NOT_FOUND",
+        });
+      }
+
+      if (cancha.estado !== "activo") {
+        throw new AppError("La cancha no esta disponible para espacios abiertos", {
+          status: 400,
+          code: "COURT_NOT_ACTIVE",
+        });
+      }
+
+      if (Number(cancha.owner_id) !== input.gestorId) {
+        throw new AppError("Solo el gestor de la cancha puede crear espacios abiertos", {
+          status: 403,
+          code: "OPEN_SLOT_OWNER_REQUIRED",
+        });
+      }
+
+      await cleanupExpiredHolds(connection, input.canchaId);
+      await assertSlotAvailable(connection, input.canchaId, fechaInicio, fechaFin);
+
+      const precioTotal = Number(cancha.precio_hora || 0) * input.duracion;
+      const cuotaParticipante = Number((precioTotal / participantes).toFixed(2));
+
+      const eventoDatos = JSON.stringify({
+        tipo: "espacio_abierto",
+        gestorId: input.gestorId,
+        duracionHoras: input.duracion,
+        participantes,
+        cuotaParticipante,
+      });
+
+      const [eventResult]: any = await connection.query(
+        `
+        INSERT INTO EVENTO
+          (fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores, evento_datos)
+        VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        [
+          input.canchaId,
+          precioTotal,
+          fechaInicio,
+          fechaFin,
+          participantes,
+          eventoDatos,
+        ]
+      );
+
+      const eventoId = eventResult.insertId;
+
+      const [paymentResult]: any = await connection.query(
+        `
+        INSERT INTO PAGO (total, metodo, estado, fk_id_evento)
+        VALUES (?, 'espacio_abierto', 'pendiente', ?)
+        `,
+        [precioTotal, eventoId]
+      );
+
+      await connection.query("UPDATE EVENTO SET id_pago = ? WHERE id_evento = ?", [
+        paymentResult.insertId,
+        eventoId,
+      ]);
+
+      const [openResult]: any = await connection.query(
+        `
+        INSERT INTO ESPACIO_ABIERTO
+          (fk_id_evento, fk_id_gestor, precio_total, cuota_participante, max_participantes)
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [eventoId, input.gestorId, precioTotal, cuotaParticipante, participantes]
+      );
+
+      await connection.commit();
+
+      broadcastReservaEvent({
+        type: "open-slot-created",
+        canchaId: input.canchaId,
+        fecha: input.fecha,
+        espacioAbiertoId: openResult.insertId,
+      });
+
+      return {
+        idEspacioAbierto: openResult.insertId,
+        idEvento: eventoId,
+        canchaId: input.canchaId,
+        fechaInicio,
+        fechaFin,
+        precioTotal,
+        cuotaParticipante,
+        maxParticipantes: participantes,
+        participantesActuales: 0,
+        cuposDisponibles: participantes,
+        estado: "abierto",
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw normalizeReservaError(error, {
+        canchaId: input.canchaId,
+        gestorId: input.gestorId,
+        fecha: input.fecha,
+        hora: input.hora,
+        duracion: input.duracion,
+        participantes,
+      });
+    } finally {
+      connection.release();
+    }
+  }
+
+  static async unirseEspacioAbierto(input: UnirseEspacioAbiertoInput) {
+    const strategy = PaymentStrategyFactory.get(input.metodoPago);
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      const [rows]: any = await connection.query(
+        `
+        SELECT
+          ea.id_espacio_abierto,
+          ea.fk_id_evento,
+          ea.estado,
+          ea.cuota_participante,
+          ea.max_participantes,
+          e.fk_id_espacio,
+          DATE(e.fecha_inic) AS fecha,
+          COUNT(CASE WHEN eap.estado = 'pagado' THEN 1 END) AS participantes_actuales
+        FROM ESPACIO_ABIERTO ea
+        INNER JOIN EVENTO e ON e.id_evento = ea.fk_id_evento
+        LEFT JOIN ESPACIO_ABIERTO_PARTICIPANTE eap
+          ON eap.fk_id_espacio_abierto = ea.id_espacio_abierto
+        WHERE ea.id_espacio_abierto = ?
+        GROUP BY
+          ea.id_espacio_abierto,
+          ea.fk_id_evento,
+          ea.estado,
+          ea.cuota_participante,
+          ea.max_participantes,
+          e.fk_id_espacio,
+          e.fecha_inic
+        FOR UPDATE
+        `,
+        [input.espacioAbiertoId]
+      );
+
+      const espacioAbierto = rows[0];
+
+      if (!espacioAbierto) {
+        throw new AppError("Espacio abierto no encontrado", {
+          status: 404,
+          code: "OPEN_SLOT_NOT_FOUND",
+        });
+      }
+
+      if (espacioAbierto.estado !== "abierto") {
+        throw new AppError("Este espacio abierto ya no recibe jugadores", {
+          status: 409,
+          code: "OPEN_SLOT_CLOSED",
+        });
+      }
+
+      if (
+        Number(espacioAbierto.participantes_actuales || 0) >=
+        Number(espacioAbierto.max_participantes || 0)
+      ) {
+        throw new AppError("El espacio abierto ya esta completo", {
+          status: 409,
+          code: "OPEN_SLOT_FULL",
+        });
+      }
+
+      const [existingRows]: any = await connection.query(
+        `
+        SELECT id_participacion
+        FROM ESPACIO_ABIERTO_PARTICIPANTE
+        WHERE fk_id_espacio_abierto = ?
+          AND fk_id_usuario = ?
+          AND estado IN ('pendiente', 'pagado')
+        LIMIT 1
+        `,
+        [input.espacioAbiertoId, input.usuarioId]
+      );
+
+      if (existingRows.length) {
+        throw new AppError("Ya estas inscrito en este espacio abierto", {
+          status: 409,
+          code: "OPEN_SLOT_ALREADY_JOINED",
+        });
+      }
+
+      const total = Number(espacioAbierto.cuota_participante || 0);
+      const payment = strategy.pay(
+        {
+          eventoId: Number(espacioAbierto.fk_id_evento),
+          total,
+        },
+        input.datosPago || {}
+      );
+
+      const [paymentResult]: any = await connection.query(
+        `
+        INSERT INTO PAGO
+          (total, metodo, estado, referencia_externa, fecha_pago, fk_id_evento)
+        VALUES (?, ?, 'pagado', ?, NOW(), ?)
+        `,
+        [total, input.metodoPago, payment.reference, espacioAbierto.fk_id_evento]
+      );
+
+      await connection.query(
+        `
+        INSERT INTO ESPACIO_ABIERTO_PARTICIPANTE
+          (fk_id_espacio_abierto, fk_id_usuario, fk_id_pago, estado)
+        VALUES (?, ?, ?, 'pagado')
+        `,
+        [input.espacioAbiertoId, input.usuarioId, paymentResult.insertId]
+      );
+
+      const nuevosParticipantes = Number(espacioAbierto.participantes_actuales || 0) + 1;
+      const completo =
+        nuevosParticipantes >= Number(espacioAbierto.max_participantes || 0);
+
+      if (completo) {
+        await connection.query(
+          "UPDATE ESPACIO_ABIERTO SET estado = 'completo' WHERE id_espacio_abierto = ?",
+          [input.espacioAbiertoId]
+        );
+        await connection.query(
+          `
+          UPDATE PAGO p
+          INNER JOIN EVENTO e ON e.id_pago = p.id_pago
+          SET p.estado = 'pagado', p.fecha_pago = NOW()
+          WHERE e.id_evento = ?
+          `,
+          [espacioAbierto.fk_id_evento]
+        );
+      }
+
+      await connection.commit();
+
+      const fecha =
+        espacioAbierto.fecha instanceof Date
+          ? espacioAbierto.fecha.toISOString().slice(0, 10)
+          : String(espacioAbierto.fecha).slice(0, 10);
+
+      broadcastReservaEvent({
+        type: "open-slot-joined",
+        canchaId: Number(espacioAbierto.fk_id_espacio),
+        fecha,
+        espacioAbiertoId: input.espacioAbiertoId,
+      });
+
+      return {
+        idEspacioAbierto: input.espacioAbiertoId,
+        canchaId: Number(espacioAbierto.fk_id_espacio),
+        total,
+        estado: payment.status,
+        metodo: input.metodoPago,
+        referencia: payment.reference,
+        message: payment.message,
+        participantesActuales: nuevosParticipantes,
+        cuposDisponibles: Number(espacioAbierto.max_participantes || 0) - nuevosParticipantes,
+        completo,
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw normalizeReservaError(error, {
+        espacioAbiertoId: input.espacioAbiertoId,
+        usuarioId: input.usuarioId,
+        metodoPago: input.metodoPago,
+      });
+    } finally {
+      connection.release();
+    }
   }
 
   static async crearCheckout(input: CrearReservaInput) {

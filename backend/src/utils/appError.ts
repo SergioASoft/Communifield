@@ -28,8 +28,20 @@ export function getErrorMessage(error: unknown) {
   return String(error || "Error desconocido");
 }
 
-export function getErrorDetails(error: any) {
+export function getErrorDetails(error: any): Record<string, unknown> | undefined {
   if (!error || typeof error !== "object") return undefined;
+
+  if (error instanceof AppError) {
+    const causeDetails: Record<string, unknown> | undefined = getErrorDetails(
+      (error as any).cause
+    );
+
+    return {
+      code: error.code,
+      details: error.details,
+      cause: causeDetails,
+    };
+  }
 
   return {
     code: error.code,

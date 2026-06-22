@@ -8,6 +8,16 @@ router.get("/stream", ReservaController.stream);
 router.get("/mis-reservas", requireAuth, ReservaController.misReservas);
 router.get("/canchas/:canchaId/disponibilidad", ReservaController.disponibilidad);
 router.post(
+  "/canchas/:canchaId/espacios-abiertos",
+  requireAuth,
+  ReservaController.crearEspacioAbierto
+);
+router.post(
+  "/espacios-abiertos/:espacioAbiertoId/unirse",
+  requireAuth,
+  ReservaController.unirseEspacioAbierto
+);
+router.post(
   "/canchas/:canchaId/checkout",
   requireAuth,
   ReservaController.crearCheckout
