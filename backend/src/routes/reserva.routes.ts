@@ -5,11 +5,17 @@ import { requireAuth } from "../middlewares/auth.middleware";
 const router = Router();
 
 router.get("/stream", ReservaController.stream);
+router.get("/mis-reservas", requireAuth, ReservaController.misReservas);
 router.get("/canchas/:canchaId/disponibilidad", ReservaController.disponibilidad);
 router.post(
   "/canchas/:canchaId/checkout",
   requireAuth,
   ReservaController.crearCheckout
+);
+router.post(
+  "/canchas/:canchaId/pagar",
+  requireAuth,
+  ReservaController.pagarReserva
 );
 router.post("/confirmar", ReservaController.confirmarPago);
 router.post("/cancelar/:eventoId", ReservaController.cancelarPendiente);

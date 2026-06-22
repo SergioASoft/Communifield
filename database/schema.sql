@@ -16,9 +16,10 @@ CREATE TABLE USUARIO (
   tel VARCHAR(20),
   biografia TEXT,
   Tipo ENUM('organizer', 'player', 'admin') NOT NULL,
-  foto LONGTEXT,
+  foto LONGTEXT NULL,
   posicion VARCHAR(100),
-  fk_id_evento INT
+  fk_id_evento INT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 -- =====================================================================
@@ -46,6 +47,7 @@ CREATE TABLE AMISTAD_USUARIO (
 -- =====================================================================
 CREATE TABLE ESPACIO (
     id_espacio INT AUTO_INCREMENT PRIMARY KEY,
+    fk_id_dueño INT NULL,
     nombre VARCHAR(150) NOT NULL,
     tipo VARCHAR(100) NOT NULL,                  
     ubicacion VARCHAR(255) NOT NULL,
@@ -90,6 +92,7 @@ CREATE TABLE PAGO (
     id_pago INT AUTO_INCREMENT PRIMARY KEY,
     total DECIMAL(10,2) NOT NULL,
     metodo VARCHAR(50) NOT NULL,
+    referencia_externa VARCHAR(255) NULL,
     estado ENUM('pendiente', 'pagado', 'fallido', 'cancelado') DEFAULT 'pendiente',
     fecha_pago DATETIME DEFAULT CURRENT_TIMESTAMP,
     fk_id_evento INT NOT NULL,
@@ -97,16 +100,46 @@ CREATE TABLE PAGO (
 );
 
 -- =====================================================================
--- 🔗 6. LLAVES FORÁNEAS CIRCULARES Y ALTERACIONES
+-- 6. TABLAS DE SUSCRIPCIONES
+-- =====================================================================
+CREATE TABLE SUSCRIPCION_GESTOR (
+  id_suscripcion INT AUTO_INCREMENT PRIMARY KEY,
+  fk_id_gestor INT NOT NULL,
+  plan VARCHAR(80) NOT NULL DEFAULT 'mensual',
+  precio DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  estado ENUM('activa', 'vencida', 'cancelada') DEFAULT 'activa',
+  fecha_inicio DATETIME DEFAULT CURRENT_TIMESTAMP,
+  fecha_fin DATETIME NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (fk_id_gestor) REFERENCES USUARIO(id_usuario)
+);
+
+CREATE TABLE PAGO_SUSCRIPCION (
+  id_pago_suscripcion INT AUTO_INCREMENT PRIMARY KEY,
+  fk_id_suscripcion INT NOT NULL,
+  total DECIMAL(10,2) NOT NULL,
+  metodo VARCHAR(50) NOT NULL,
+  estado ENUM('pendiente', 'pagado', 'fallido', 'cancelado') DEFAULT 'pendiente',
+  fecha_pago DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (fk_id_suscripcion) REFERENCES SUSCRIPCION_GESTOR(id_suscripcion)
+);
+
+-- =====================================================================
+-- 🔗 7. LLAVES FORÁNEAS CIRCULARES Y ALTERACIONES
 -- =====================================================================
 ALTER TABLE USUARIO ADD CONSTRAINT fk_usuario_evento FOREIGN KEY (fk_id_evento) REFERENCES EVENTO(id_evento);
 ALTER TABLE EVENTO ADD CONSTRAINT fk_evento_pago FOREIGN KEY (id_pago) REFERENCES PAGO(id_pago);
+ALTER TABLE ESPACIO ADD CONSTRAINT fk_espacio_dueno FOREIGN KEY (fk_id_dueño) REFERENCES USUARIO(id_usuario);
 
 -- ÍNDICES DE RENDIMIENTO
 CREATE INDEX idx_evento_espacio_fechas ON EVENTO(fk_id_espacio, fecha_inic, fecha_fin);
+CREATE INDEX idx_pago_referencia_externa ON PAGO(referencia_externa);
+CREATE INDEX idx_pago_estado_fecha ON PAGO(estado, fecha_pago);
+CREATE INDEX idx_pago_suscripcion_fecha_estado ON PAGO_SUSCRIPCION(fecha_pago, estado);
+CREATE INDEX idx_suscripcion_gestor_estado ON SUSCRIPCION_GESTOR(fk_id_gestor, estado);
 
 -- =====================================================================
--- 🔒 7. TRIGGERS DE VALIDACIÓN
+-- 🔒 8. TRIGGERS DE VALIDACIÓN
 -- =====================================================================
 DELIMITER $$
 
@@ -126,15 +159,17 @@ BEFORE INSERT ON EVENTO
 FOR EACH ROW
 BEGIN
     DECLARE conteo_conflictos INT;
-    SELECT COUNT(*) INTO conteo_conflictos FROM EVENTO
-    WHERE fk_id_espacio = NEW.fk_id_espacio
-    AND (
-        (NEW.fecha_inic BETWEEN fecha_inic AND fecha_fin) OR
-        (NEW.fecha_fin BETWEEN fecha_inic AND fecha_fin) OR
-        (fecha_inic BETWEEN NEW.fecha_inic AND NEW.fecha_fin)
-    );
+
+    SELECT COUNT(*) INTO conteo_conflictos
+    FROM EVENTO e
+    INNER JOIN PAGO p ON p.id_pago = e.id_pago
+    WHERE e.fk_id_espacio = NEW.fk_id_espacio
+      AND p.estado IN ('pendiente', 'pagado')
+      AND e.fecha_inic < NEW.fecha_fin
+      AND e.fecha_fin > NEW.fecha_inic;
+
     IF conteo_conflictos > 0 THEN
-        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La cancha no está disponible en ese horario';
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La cancha no esta disponible en ese horario';
     END IF;
 END$$
 
@@ -165,17 +200,20 @@ BEFORE UPDATE ON EVENTO
 FOR EACH ROW
 BEGIN
     DECLARE conteo_conflictos INT;
+
     IF NEW.fecha_inic >= NEW.fecha_fin THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'La fecha de inicio debe ser menor a la de fin';
     END IF;
 
-    SELECT COUNT(*) INTO conteo_conflictos FROM EVENTO
-    WHERE fk_id_espacio = NEW.fk_id_espacio AND id_evento != OLD.id_evento
-    AND (
-        (NEW.fecha_inic BETWEEN fecha_inic AND fecha_fin) OR
-        (NEW.fecha_fin BETWEEN fecha_inic AND fecha_fin) OR
-        (fecha_inic BETWEEN NEW.fecha_inic AND NEW.fecha_fin)
-    );
+    SELECT COUNT(*) INTO conteo_conflictos
+    FROM EVENTO e
+    INNER JOIN PAGO p ON p.id_pago = e.id_pago
+    WHERE e.fk_id_espacio = NEW.fk_id_espacio
+      AND e.id_evento != OLD.id_evento
+      AND p.estado IN ('pendiente', 'pagado')
+      AND e.fecha_inic < NEW.fecha_fin
+      AND e.fecha_fin > NEW.fecha_inic;
+
     IF conteo_conflictos > 0 THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Conflicto de horario al actualizar el evento';
     END IF;
@@ -184,7 +222,7 @@ END$$
 DELIMITER ;
 
 -- =====================================================================
--- 🧪 8. POBLACIÓN DE DATOS DE PRUEBA (SEED DATA)
+-- 🧪 9. POBLACIÓN DE DATOS DE PRUEBA (SEED DATA)
 -- =====================================================================
 -- APAGAR LA VERIFICACIÓN DE LLAVES FORÁNEAS PARA LA INSERCIÓN INICIAL
 SET FOREIGN_KEY_CHECKS = 0;
@@ -287,7 +325,7 @@ INSERT INTO EVENTO (id_evento, fk_id_espacio, precio, fecha_inic, fecha_fin, max
 INSERT INTO PAGO (id_pago, total, metodo, estado, fecha_pago, fk_id_evento) VALUES (71, 100.00, 'tarjeta', 'pagado', '2026-05-10 15:30:00', 71);
 
 -- =====================================================================
--- 🔄 9. ACTUALIZAR LAS RELACIONES CRUZADAS (LLAVES CIRCULARES)
+-- 🔄 10. ACTUALIZAR LAS RELACIONES CRUZADAS (LLAVES CIRCULARES)
 -- =====================================================================
 UPDATE EVENTO SET id_pago = 10 WHERE id_evento = 10;
 UPDATE EVENTO SET id_pago = 11 WHERE id_evento = 11;
@@ -307,10 +345,3 @@ UPDATE EVENTO SET id_pago = 71 WHERE id_evento = 71;
 
 -- REACTIVAR LA VERIFICACIÓN DE LLAVES FORÁNEAS
 SET FOREIGN_KEY_CHECKS = 1;
-ET FOREIGN_KEY_CHECKS = 1;
-ALTER TABLE ESPACIO
-ADD COLUMN fk_id_dueño INT NULL AFTER id_espacio;
-ALTER TABLE ESPACIO
-ADD CONSTRAINT fk_espacio_dueno
-FOREIGN KEY (fk_id_dueño)
-REFERENCES USUARIO(id_usuario);

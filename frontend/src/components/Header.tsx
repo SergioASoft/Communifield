@@ -511,6 +511,10 @@ export default function Header({ usuario }: HeaderProps) {
                 Mi perfil
               </a>
 
+              <a href="/mis-reservas" className="menu-item">
+                Mis reservas
+              </a>
+
               {(() => {
   const raw = localStorage.getItem("communifield_user");
   const user = raw ? JSON.parse(raw) : null;
@@ -525,11 +529,7 @@ export default function Header({ usuario }: HeaderProps) {
         Gestión de mis canchas
       </a>
     </>
-  ) : (
-    <a href="#" className="menu-item">
-      Mis reservas
-    </a>
-  );
+  ) : null;
 })()}
 
               <button

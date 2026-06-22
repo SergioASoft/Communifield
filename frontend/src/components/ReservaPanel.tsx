@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type FormEvent } from "react";
+import { CheckCircle2, CreditCard, Landmark, Lock, Smartphone, X } from "lucide-react";
 
 import { HORARIOS_SELECT } from "../data/canchaData";
 
@@ -17,6 +18,108 @@ type ReservaOcupada = {
   estado: "pendiente" | "pagado";
 };
 
+type ApiErrorBody = {
+  message?: string;
+  code?: string;
+  details?: unknown;
+};
+
+class ApiRequestError extends Error {
+  status: number;
+  body: ApiErrorBody;
+
+  constructor(message: string, status: number, body: ApiErrorBody) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
+type MetodoPago = "nequi" | "pse" | "tarjeta";
+
+type PagoForm = {
+  phone: string;
+  bank: string;
+  documentType: string;
+  documentNumber: string;
+  cardNumber: string;
+  expiry: string;
+  cvv: string;
+  holderName: string;
+  cardType: "debito" | "credito";
+};
+
+const METODOS_PAGO: Array<{
+  id: MetodoPago;
+  label: string;
+  description: string;
+  icon: ComponentType<{ size?: number }>;
+}> = [
+  {
+    id: "nequi",
+    label: "Nequi",
+    description: "Confirma con tu numero celular",
+    icon: Smartphone,
+  },
+  {
+    id: "pse",
+    label: "PSE",
+    description: "Debito desde cuenta bancaria",
+    icon: Landmark,
+  },
+  {
+    id: "tarjeta",
+    label: "Visa / Mastercard",
+    description: "Tarjeta debito o credito",
+    icon: CreditCard,
+  },
+];
+
+const initialPagoForm: PagoForm = {
+  phone: "",
+  bank: "",
+  documentType: "CC",
+  documentNumber: "",
+  cardNumber: "",
+  expiry: "",
+  cvv: "",
+  holderName: "",
+  cardType: "debito",
+};
+
+async function readJsonResponse(res: Response) {
+  try {
+    return await res.json();
+  } catch (error) {
+    console.error("[ReservaPanel] La API no devolvio JSON valido", {
+      status: res.status,
+      url: res.url,
+      error,
+    });
+    return {};
+  }
+}
+
+function logReservaError(scope: string, error: unknown, context?: Record<string, unknown>) {
+  if (error instanceof ApiRequestError) {
+    console.error(`[ReservaPanel] ${scope}`, {
+      message: error.message,
+      status: error.status,
+      code: error.body.code,
+      details: error.body.details,
+      context,
+    });
+    return;
+  }
+
+  console.error(`[ReservaPanel] ${scope}`, {
+    message: error instanceof Error ? error.message : String(error),
+    error,
+    context,
+  });
+}
+
 function formatCOP(valor?: number): string {
   if (!valor || isNaN(valor)) {
     return "$0";
@@ -29,13 +132,23 @@ function formatCOP(valor?: number): string {
   });
 }
 
+function formatTime(value: string) {
+  const normalized = value.includes("T") ? value.slice(0, 19).replace("T", " ") : value;
+  const [, timePart = "00:00:00"] = normalized.split(" ");
+  return timePart.slice(0, 5);
+}
+
 export default function ReservaPanel({ cancha }: ReservaPanelProps) {
   const [duracion, setDuracion] = useState<Duracion>(1);
   const [fecha, setFecha] = useState("");
   const [hora, setHora] = useState("");
   const [reservasOcupadas, setReservasOcupadas] = useState<ReservaOcupada[]>([]);
   const [mensajeReserva, setMensajeReserva] = useState("");
-  const [creandoCheckout, setCreandoCheckout] = useState(false);
+  const [modalPagoAbierto, setModalPagoAbierto] = useState(false);
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>("nequi");
+  const [pagoForm, setPagoForm] = useState<PagoForm>(initialPagoForm);
+  const [procesandoPago, setProcesandoPago] = useState(false);
+  const [mensajePago, setMensajePago] = useState("");
 
   const precioHora = Number(
     cancha.precioHora || cancha.precioPorHora || cancha.precio_hora || 0
@@ -87,6 +200,16 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
     });
   }
 
+  const horariosOcupados = useMemo(
+    () =>
+      reservasOcupadas.map((reserva) => ({
+        idEvento: reserva.idEvento,
+        label: `${formatTime(reserva.fechaInicio)} - ${formatTime(reserva.fechaFin)}`,
+        estado: reserva.estado,
+      })),
+    [reservasOcupadas]
+  );
+
   async function cargarDisponibilidad(fechaReserva = fecha) {
     if (!canchaId || !fechaReserva) {
       setReservasOcupadas([]);
@@ -97,14 +220,22 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
       const res = await fetch(
         `/api/reservas/canchas/${canchaId}/disponibilidad?fecha=${fechaReserva}`
       );
-      const data = await res.json();
+      const data = await readJsonResponse(res);
 
       if (!res.ok) {
-        throw new Error(data.message || "No se pudo consultar disponibilidad");
+        throw new ApiRequestError(
+          data.message || "No se pudo consultar disponibilidad",
+          res.status,
+          data
+        );
       }
 
       setReservasOcupadas(data.reservas || []);
     } catch (error: any) {
+      logReservaError("Error consultando disponibilidad", error, {
+        canchaId,
+        fechaReserva,
+      });
       setMensajeReserva(error.message || "No se pudo consultar disponibilidad.");
     }
   }
@@ -122,7 +253,11 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
         if (Number(data.canchaId) === canchaId && (!fecha || data.fecha === fecha)) {
           cargarDisponibilidad(fecha);
         }
-      } catch {
+      } catch (error) {
+        console.error("[ReservaPanel] Evento SSE de reservas no tiene JSON valido", {
+          raw: event.data,
+          error,
+        });
         cargarDisponibilidad(fecha);
       }
     };
@@ -136,7 +271,7 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
     };
   }, [canchaId, fecha]);
 
-  async function reservar() {
+  function abrirModalPago() {
     const token = localStorage.getItem("communifield_token");
 
     if (!token) {
@@ -154,32 +289,266 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
       return;
     }
 
-    setCreandoCheckout(true);
     setMensajeReserva("");
+    setMensajePago("");
+    setModalPagoAbierto(true);
+  }
+
+  function updatePagoForm<K extends keyof PagoForm>(key: K, value: PagoForm[K]) {
+    setPagoForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function getDatosPago() {
+    if (metodoPago === "nequi") {
+      return {
+        phone: pagoForm.phone,
+      };
+    }
+
+    if (metodoPago === "pse") {
+      return {
+        bank: pagoForm.bank,
+        documentType: pagoForm.documentType,
+        documentNumber: pagoForm.documentNumber,
+      };
+    }
+
+    return {
+      cardNumber: pagoForm.cardNumber,
+      expiry: pagoForm.expiry,
+      cvv: pagoForm.cvv,
+      holderName: pagoForm.holderName,
+      cardType: pagoForm.cardType,
+    };
+  }
+
+  async function pagarReserva(e: FormEvent) {
+    e.preventDefault();
+
+    if (procesandoPago) return;
+
+    const token = localStorage.getItem("communifield_token");
+
+    if (!token) {
+      setMensajeReserva("Debes iniciar sesion para reservar una cancha.");
+      setModalPagoAbierto(false);
+      return;
+    }
+
+    setProcesandoPago(true);
+    setMensajeReserva("");
+    setMensajePago("");
+
+    const payload = {
+      fecha,
+      hora,
+      duracion,
+      metodoPago,
+      datosPago: getDatosPago(),
+    };
 
     try {
-      const res = await fetch(`/api/reservas/canchas/${canchaId}/checkout`, {
+      const res = await fetch(`/api/reservas/canchas/${canchaId}/pagar`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ fecha, hora, duracion }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
+      const data = await readJsonResponse(res);
 
       if (!res.ok) {
-        throw new Error(data.message || "No se pudo iniciar el pago");
+        throw new ApiRequestError(
+          data.message || "No se pudo completar el pago",
+          res.status,
+          data
+        );
       }
 
-      window.location.href = data.checkoutUrl;
+      setMensajeReserva(
+        `Reserva confirmada. ${data.message || "Pago aprobado"} Ref: ${data.referencia}`
+      );
+      setModalPagoAbierto(false);
+      setPagoForm(initialPagoForm);
+      await cargarDisponibilidad();
     } catch (error: any) {
-      setMensajeReserva(error.message || "No se pudo iniciar la reserva.");
+      logReservaError("Error completando pago", error, {
+        canchaId,
+        payload,
+      });
+      setMensajePago(error.message || "No se pudo completar la reserva.");
       await cargarDisponibilidad();
     } finally {
-      setCreandoCheckout(false);
+      setProcesandoPago(false);
     }
+  }
+
+  function renderCamposPago() {
+    if (metodoPago === "nequi") {
+      return (
+        <div className="campo-grupo">
+          <label className="campo-label" htmlFor="nequi-phone">
+            Numero Nequi
+          </label>
+          <input
+            id="nequi-phone"
+            className="campo-input"
+            inputMode="numeric"
+            placeholder="3001234567"
+            value={pagoForm.phone}
+            required
+            onChange={(e) => updatePagoForm("phone", e.target.value)}
+          />
+        </div>
+      );
+    }
+
+    if (metodoPago === "pse") {
+      return (
+        <>
+          <div className="campo-grupo">
+            <label className="campo-label" htmlFor="pse-bank">
+              Banco
+            </label>
+            <select
+              id="pse-bank"
+              className="campo-input"
+              value={pagoForm.bank}
+              required
+              onChange={(e) => updatePagoForm("bank", e.target.value)}
+            >
+              <option value="">Selecciona tu banco</option>
+              <option value="bancolombia">Bancolombia</option>
+              <option value="davivienda">Davivienda</option>
+              <option value="bbva">BBVA</option>
+              <option value="banco-bogota">Banco de Bogota</option>
+            </select>
+          </div>
+
+          <div className="pago-grid">
+            <div className="campo-grupo">
+              <label className="campo-label" htmlFor="pse-doc-type">
+                Tipo
+              </label>
+              <select
+                id="pse-doc-type"
+                className="campo-input"
+                value={pagoForm.documentType}
+                required
+                onChange={(e) => updatePagoForm("documentType", e.target.value)}
+              >
+                <option value="CC">CC</option>
+                <option value="CE">CE</option>
+                <option value="NIT">NIT</option>
+              </select>
+            </div>
+
+            <div className="campo-grupo">
+              <label className="campo-label" htmlFor="pse-doc-number">
+                Documento
+              </label>
+              <input
+                id="pse-doc-number"
+                className="campo-input"
+                inputMode="numeric"
+                value={pagoForm.documentNumber}
+                required
+                onChange={(e) => updatePagoForm("documentNumber", e.target.value)}
+              />
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <div className="campo-grupo">
+          <label className="campo-label" htmlFor="card-holder">
+            Titular
+          </label>
+          <input
+            id="card-holder"
+            className="campo-input"
+            placeholder="Nombre como aparece en la tarjeta"
+            value={pagoForm.holderName}
+            required
+            onChange={(e) => updatePagoForm("holderName", e.target.value)}
+          />
+        </div>
+
+        <div className="campo-grupo">
+          <label className="campo-label" htmlFor="card-number">
+            Numero de tarjeta
+          </label>
+          <input
+            id="card-number"
+            className="campo-input"
+            inputMode="numeric"
+            placeholder="4111111111111111"
+            value={pagoForm.cardNumber}
+            required
+            onChange={(e) => updatePagoForm("cardNumber", e.target.value)}
+          />
+        </div>
+
+        <div className="pago-grid">
+          <div className="campo-grupo">
+            <label className="campo-label" htmlFor="card-expiry">
+              Vence
+            </label>
+            <input
+              id="card-expiry"
+              className="campo-input"
+              placeholder="MM/AA"
+              value={pagoForm.expiry}
+              required
+              onChange={(e) => updatePagoForm("expiry", e.target.value)}
+            />
+          </div>
+
+          <div className="campo-grupo">
+            <label className="campo-label" htmlFor="card-cvv">
+              CVV
+            </label>
+            <input
+              id="card-cvv"
+              className="campo-input"
+              inputMode="numeric"
+              value={pagoForm.cvv}
+              required
+              onChange={(e) => updatePagoForm("cvv", e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="tipo-tarjeta">
+          <label>
+            <input
+              type="radio"
+              name="cardType"
+              checked={pagoForm.cardType === "debito"}
+              onChange={() => updatePagoForm("cardType", "debito")}
+            />
+            Debito
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="cardType"
+              checked={pagoForm.cardType === "credito"}
+              onChange={() => updatePagoForm("cardType", "credito")}
+            />
+            Credito
+          </label>
+        </div>
+      </>
+    );
   }
 
   return (
@@ -240,6 +609,28 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
           </select>
         </div>
 
+        {fecha && (
+          <div className="horarios-ocupados">
+            <div className="horarios-ocupados-header">
+              <span>Horarios ocupados</span>
+              <strong>{horariosOcupados.length}</strong>
+            </div>
+
+            {horariosOcupados.length > 0 ? (
+              <div className="horarios-ocupados-lista">
+                {horariosOcupados.map((reserva) => (
+                  <span key={reserva.idEvento} className="horario-ocupado-chip">
+                    {reserva.label}
+                    <small>{reserva.estado}</small>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p>No hay reservas registradas para esta fecha.</p>
+            )}
+          </div>
+        )}
+
         <div className="campo-grupo">
           <label className="campo-label">Duracion</label>
           <div className="duracion-opciones">
@@ -283,13 +674,13 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
         <button
           className="btn-reservar"
           type="button"
-          disabled={creandoCheckout || !fecha || !hora || slotOcupado(hora, duracion)}
-          onClick={reservar}
+          disabled={!fecha || !hora || slotOcupado(hora, duracion)}
+          onClick={abrirModalPago}
         >
-          {creandoCheckout ? "Preparando pago..." : "Pagar y reservar"}
+          Pagar y reservar
         </button>
 
-        <p className="reserva-nota">Pago completo con Stripe en modo sandbox.</p>
+        <p className="reserva-nota">Pago seguro con Nequi, PSE o tarjeta.</p>
       </div>
 
       <div className="info-rapida">
@@ -306,6 +697,84 @@ export default function ReservaPanel({ cancha }: ReservaPanelProps) {
           <span>Pago 100% seguro</span>
         </div>
       </div>
+
+      {modalPagoAbierto && (
+        <div className="pago-modal-backdrop" role="presentation">
+          <form className="pago-modal" onSubmit={pagarReserva}>
+            <div className="pago-modal-header">
+              <div>
+                <p className="pago-eyebrow">Pago de reserva</p>
+                <h2>Completa tu pago</h2>
+              </div>
+              <button
+                type="button"
+                className="pago-close"
+                onClick={() => setModalPagoAbierto(false)}
+                aria-label="Cerrar modal de pago"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="pago-resumen">
+              <div>
+                <span>Fecha y hora</span>
+                <strong>
+                  {fecha} - {hora}
+                </strong>
+              </div>
+              <div>
+                <span>Total</span>
+                <strong>{formatCOP(total)}</strong>
+              </div>
+            </div>
+
+            <div className="metodos-pago">
+              {METODOS_PAGO.map((metodo) => {
+                const Icon = metodo.icon;
+
+                return (
+                  <button
+                    key={metodo.id}
+                    type="button"
+                    className={`metodo-pago${metodoPago === metodo.id ? " active" : ""}`}
+                    onClick={() => {
+                      setMetodoPago(metodo.id);
+                      setMensajePago("");
+                    }}
+                  >
+                    <Icon size={20} />
+                    <span>
+                      <strong>{metodo.label}</strong>
+                      <small>{metodo.description}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="pago-formulario">{renderCamposPago()}</div>
+
+            {mensajePago && <p className="pago-error">{mensajePago}</p>}
+
+            <div className="pago-seguridad">
+              <Lock size={16} />
+              <span>Transaccion protegida en ambiente sandbox.</span>
+            </div>
+
+            <button className="btn-reservar" type="submit" disabled={procesandoPago}>
+              {procesandoPago ? (
+                "Procesando pago..."
+              ) : (
+                <>
+                  <CheckCircle2 size={18} />
+                  Confirmar pago
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+      )}
     </aside>
   );
 }

@@ -3,6 +3,8 @@ import { pool } from "../config/db";
 import { env } from "../config/env";
 import { broadcastReservaEvent } from "./reservaRealtime";
 import { StripeCheckoutService } from "./stripeCheckoutService";
+import { PaymentPayload, PaymentStrategyFactory } from "./paymentStrategy";
+import { AppError, getErrorDetails, getErrorMessage, logError } from "../utils/appError";
 
 type CrearReservaInput = {
   canchaId: number;
@@ -10,6 +12,11 @@ type CrearReservaInput = {
   fecha: string;
   hora: string;
   duracion: number;
+};
+
+type CrearPagoReservaInput = CrearReservaInput & {
+  metodoPago: string;
+  datosPago: PaymentPayload;
 };
 
 function parseHora(hora: string) {
@@ -37,11 +44,19 @@ function toMysqlDatetime(date: Date) {
 
 function buildStartEnd(fecha: string, hora: string, duracion: number) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-    throw new Error("Selecciona una fecha valida");
+    throw new AppError("Selecciona una fecha valida", {
+      status: 400,
+      code: "INVALID_RESERVATION_DATE",
+      details: { fecha },
+    });
   }
 
   if (![1, 2, 3].includes(duracion)) {
-    throw new Error("La duracion debe ser de 1 a 3 horas");
+    throw new AppError("La duracion debe ser de 1 a 3 horas", {
+      status: 400,
+      code: "INVALID_RESERVATION_DURATION",
+      details: { duracion },
+    });
   }
 
   const { hours, minutes } = parseHora(hora);
@@ -51,7 +66,11 @@ function buildStartEnd(fecha: string, hora: string, duracion: number) {
   end.setHours(end.getHours() + duracion);
 
   if (start.getTime() < Date.now()) {
-    throw new Error("No puedes reservar un horario que ya paso");
+    throw new AppError("No puedes reservar un horario que ya paso", {
+      status: 400,
+      code: "PAST_RESERVATION_SLOT",
+      details: { fecha, hora, duracion },
+    });
   }
 
   return {
@@ -93,7 +112,7 @@ async function assertSlotAvailable(
 ) {
   const [conflicts]: any = await connection.query(
     `
-    SELECT e.id_evento
+    SELECT e.id_evento, e.fecha_inic, e.fecha_fin, p.estado AS estado_pago
     FROM EVENTO e
     INNER JOIN PAGO p ON p.id_pago = e.id_pago
     WHERE e.fk_id_espacio = ?
@@ -107,11 +126,116 @@ async function assertSlotAvailable(
   );
 
   if (conflicts.length) {
-    throw new Error("La cancha ya esta reservada en ese horario");
+    throw new AppError("La cancha ya esta reservada en ese horario", {
+      status: 409,
+      code: "RESERVATION_SLOT_UNAVAILABLE",
+      details: {
+        canchaId,
+        fechaInicio,
+        fechaFin,
+        conflicto: conflicts[0],
+      },
+    });
   }
 }
 
+function normalizeReservaError(error: any, context: Record<string, unknown>) {
+  if (error instanceof AppError) {
+    return error;
+  }
+
+  const message = getErrorMessage(error);
+  const details = getErrorDetails(error);
+
+  if (message.includes("referencia_externa") || details?.sqlMessage?.includes("referencia_externa")) {
+    return new AppError(
+      "La base de datos no tiene la columna referencia_externa en PAGO. Ejecuta la migracion 003 o actualiza schema.sql.",
+      {
+        status: 500,
+        code: "PAYMENT_SCHEMA_OUTDATED",
+        details,
+        cause: error,
+      }
+    );
+  }
+
+  if (
+    message.includes("disponible en ese horario") ||
+    message.includes("Conflicto de horario") ||
+    details?.sqlState === "45000"
+  ) {
+    return new AppError(
+      "La base de datos rechazo el horario por solapamiento. Revisa si existe un EVENTO cruzado para esa cancha.",
+      {
+        status: 409,
+        code: "DATABASE_SLOT_CONFLICT",
+        details: {
+          ...details,
+          context,
+        },
+        cause: error,
+      }
+    );
+  }
+
+  return new AppError("No se pudo completar la reserva por un error interno", {
+    status: 500,
+    code: "RESERVATION_PAYMENT_FAILED",
+    details,
+    cause: error,
+  });
+}
+
 export class ReservaService {
+  static async getReservasUsuario(usuarioId: number) {
+    const [rows]: any = await pool.query(
+      `
+      SELECT
+        e.id_evento,
+        e.fk_id_espacio,
+        esp.nombre AS cancha_nombre,
+        esp.tipo AS cancha_tipo,
+        esp.ubicacion AS cancha_ubicacion,
+        esp.imagen_principal AS cancha_imagen,
+        DATE_FORMAT(e.fecha_inic, '%Y-%m-%d %H:%i:%s') AS fecha_inicio,
+        DATE_FORMAT(e.fecha_fin, '%Y-%m-%d %H:%i:%s') AS fecha_fin,
+        e.precio AS subtotal,
+        p.id_pago,
+        p.total,
+        p.metodo,
+        p.estado AS estado_pago,
+        p.referencia_externa,
+        DATE_FORMAT(p.fecha_pago, '%Y-%m-%d %H:%i:%s') AS fecha_pago
+      FROM EVENTO e
+      INNER JOIN ESPACIO esp ON esp.id_espacio = e.fk_id_espacio
+      INNER JOIN PAGO p ON p.id_pago = e.id_pago
+      WHERE JSON_UNQUOTE(JSON_EXTRACT(e.evento_datos, '$.usuarioId')) = ?
+      ORDER BY e.fecha_inic DESC
+      `,
+      [String(usuarioId)]
+    );
+
+    return rows.map((row: any) => ({
+      idEvento: row.id_evento,
+      canchaId: row.fk_id_espacio,
+      canchaNombre: row.cancha_nombre,
+      canchaTipo: row.cancha_tipo,
+      canchaUbicacion: row.cancha_ubicacion,
+      canchaImagen: row.cancha_imagen,
+      fechaInicio: row.fecha_inicio,
+      fechaFin: row.fecha_fin,
+      subtotal: Number(row.subtotal || 0),
+      pago: {
+        idPago: row.id_pago,
+        total: Number(row.total || 0),
+        metodo: row.metodo,
+        estado: row.estado_pago,
+        referencia: row.referencia_externa,
+        fechaPago: row.fecha_pago,
+      },
+    }));
+  }
+
   static async getDisponibilidad(canchaId: number, fecha: string) {
     const connection = await pool.getConnection();
 
@@ -130,8 +254,8 @@ export class ReservaService {
       `
       SELECT
         e.id_evento,
-        e.fecha_inic,
-        e.fecha_fin,
+        DATE_FORMAT(e.fecha_inic, '%Y-%m-%d %H:%i:%s') AS fecha_inic,
+        DATE_FORMAT(e.fecha_fin, '%Y-%m-%d %H:%i:%s') AS fecha_fin,
         p.estado AS estado_pago
       FROM EVENTO e
       INNER JOIN PAGO p ON p.id_pago = e.id_pago
@@ -264,6 +388,148 @@ export class ReservaService {
       stripeMock: session.mock,
       total,
     };
+  }
+
+  static async pagarReserva(input: CrearPagoReservaInput) {
+    const { fechaInicio, fechaFin } = buildStartEnd(
+      input.fecha,
+      input.hora,
+      input.duracion
+    );
+    const strategy = PaymentStrategyFactory.get(input.metodoPago);
+    const connection = await pool.getConnection();
+
+    let eventoId = 0;
+    let pagoId = 0;
+    let total = 0;
+
+    try {
+      await connection.beginTransaction();
+
+      const [canchaRows]: any = await connection.query(
+        `
+        SELECT id_espacio, nombre, precio_hora, estado
+        FROM ESPACIO
+        WHERE id_espacio = ?
+        LIMIT 1
+        FOR UPDATE
+        `,
+        [input.canchaId]
+      );
+
+      const cancha = canchaRows[0];
+
+      if (!cancha) {
+        throw new Error("Cancha no encontrada");
+      }
+
+      if (cancha.estado !== "activo") {
+        throw new Error("La cancha no esta disponible para reservas");
+      }
+
+      await cleanupExpiredHolds(connection, input.canchaId);
+      await assertSlotAvailable(connection, input.canchaId, fechaInicio, fechaFin);
+
+      const precioHora = Number(cancha.precio_hora || 0);
+      const subtotal = precioHora * input.duracion;
+      const tasaServicio = 5000;
+      total = subtotal + tasaServicio;
+
+      const eventoDatos = JSON.stringify({
+        tipo: "reserva_usuario",
+        usuarioId: input.usuarioId,
+        duracionHoras: input.duracion,
+        tasaServicio,
+      });
+
+      const [eventResult]: any = await connection.query(
+        `
+        INSERT INTO EVENTO
+          (fk_id_espacio, precio, fecha_inic, fecha_fin, max_jugadores, evento_datos)
+        VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        [input.canchaId, subtotal, fechaInicio, fechaFin, 1, eventoDatos]
+      );
+
+      eventoId = eventResult.insertId;
+
+      const [paymentResult]: any = await connection.query(
+        `
+        INSERT INTO PAGO (total, metodo, estado, fk_id_evento)
+        VALUES (?, ?, 'pendiente', ?)
+        `,
+        [total, input.metodoPago, eventoId]
+      );
+
+      pagoId = paymentResult.insertId;
+
+      await connection.query("UPDATE EVENTO SET id_pago = ? WHERE id_evento = ?", [
+        pagoId,
+        eventoId,
+      ]);
+
+      const payment = strategy.pay(
+        {
+          eventoId,
+          total,
+        },
+        input.datosPago || {}
+      );
+
+      await connection.query(
+        `
+        UPDATE PAGO
+        SET estado = 'pagado',
+            metodo = ?,
+            referencia_externa = ?,
+            fecha_pago = NOW()
+        WHERE id_pago = ?
+        `,
+        [input.metodoPago, payment.reference, pagoId]
+      );
+
+      await connection.commit();
+
+      broadcastReservaEvent({
+        type: "reservation-paid",
+        canchaId: input.canchaId,
+        fecha: input.fecha,
+      });
+
+      return {
+        idEvento: eventoId,
+        canchaId: input.canchaId,
+        total,
+        estado: payment.status,
+        metodo: input.metodoPago,
+        referencia: payment.reference,
+        message: payment.message,
+      };
+    } catch (error) {
+      await connection.rollback();
+      logError("ReservaService.pagarReserva", error, {
+        canchaId: input.canchaId,
+        usuarioId: input.usuarioId,
+        fecha: input.fecha,
+        hora: input.hora,
+        duracion: input.duracion,
+        metodoPago: input.metodoPago,
+        eventoId,
+        pagoId,
+      });
+      throw normalizeReservaError(error, {
+        canchaId: input.canchaId,
+        usuarioId: input.usuarioId,
+        fecha: input.fecha,
+        hora: input.hora,
+        duracion: input.duracion,
+        metodoPago: input.metodoPago,
+        eventoId,
+        pagoId,
+      });
+    } finally {
+      connection.release();
+    }
   }
 
   static async confirmarPago(sessionId: string) {
