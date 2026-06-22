@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { resolvePhotoUrl, type PhotoFilePayload } from "../services/userService";
-import "../styles/ProfilePage.css";
+import "../styles/Profilepage.css";
 
 type UserProfile = {
   id?: number;
@@ -128,9 +128,10 @@ const ProfilePage = () => {
     <main className="profile-page">
       <section className="profile-hero">
         <div className="profile-container">
-          <span className="profile-logo">
+          <button className="back-button auth-back-button" type="button" onClick={() => navigate("/")}>← Retroceder</button>
+          <button className="profile-logo profile-logo-button" type="button" onClick={() => navigate("/")}>
             CommuniField <span className="profile-logo-dot">•</span>
-          </span>
+          </button>
 
           <div className="hero-content">
             <div className="avatar-wrapper">

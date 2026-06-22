@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
@@ -11,11 +12,12 @@ except ImportError:  # pragma: no cover
     from mcp_tools import MCPToolRegistry
 
 
-def load_env_file(path: str = ".env") -> None:
-    if not os.path.exists(path):
+def load_env_file(path: str | None = None) -> None:
+    env_path = Path(path) if path else Path(__file__).resolve().parents[1] / ".env"
+    if not env_path.exists():
         return
 
-    with open(path, "r", encoding="utf-8") as env_file:
+    with env_path.open("r", encoding="utf-8") as env_file:
         for line in env_file:
             clean = line.strip()
             if not clean or clean.startswith("#") or "=" not in clean:
@@ -46,7 +48,15 @@ class AgentHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         if self.path == "/health":
-            self._send_json(200, {"status": "ok", "service": "communifield-python-agent"})
+            self._send_json(
+                200,
+                {
+                    "status": "ok",
+                    "service": "communifield-python-agent",
+                    "geminiConfigured": agent.llm.enabled,
+                    "geminiModel": agent.llm.model,
+                },
+            )
             return
 
         if self.path == "/mcp/tools":

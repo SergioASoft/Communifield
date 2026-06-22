@@ -13,6 +13,33 @@ interface GaleriaProps {
   cancha: any;
 }
 
+function parseJsonField(value: any, fallback: any[] = []): any[] {
+  if (!value) return fallback;
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const cleanValue = value.trim();
+  if (!cleanValue) return fallback;
+
+  if (cleanValue.startsWith("data:image")) {
+    return [cleanValue];
+  }
+
+  try {
+    const parsed = JSON.parse(cleanValue);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+
 function getUsuarioSesion(): Usuario | undefined {
   try {
     const raw = localStorage.getItem("communifield_user");
@@ -41,49 +68,49 @@ function getInitials(name: string) {
     .join("");
 }
 
+function usuarioPuedeModificarResena(usuario: Usuario | undefined, resena: any) {
+  if (!usuario) return false;
+
+  return resena.email === usuario.email || resena.nombre === usuario.nombre;
+}
+
 function Galeria({ cancha }: GaleriaProps) {
   const [miniActiva, setMiniActiva] = useState(0);
+
+  const imagenes = [
+    cancha.imagen_principal,
+    ...(Array.isArray(cancha.imagenes) ? cancha.imagenes : []),
+  ]
+    .filter(Boolean)
+    .filter((img, index, array) => array.indexOf(img) === index);
+
+  const imagenPrincipal = imagenes[miniActiva] || "";
 
   return (
     <section className="galeria">
       <div className="galeria-principal">
-        <img
-          src={cancha.imagen_principal}
-          alt={cancha.nombre}
-          onError={(e) => {
-            const el = e.currentTarget.parentElement!;
-
-            el.innerHTML = `
-              <div class="galeria-placeholder">
-                <span></span>
-                <p>Foto principal</p>
-              </div>
-            `;
-          }}
-        />
-      </div>
-
-      <div className="galeria-miniaturas">
-        {cancha.imagenes.map((img: string, i: number) => (
-          <div
-            key={i}
-            className={`miniatura${miniActiva === i ? " active" : ""}`}
-            onClick={() => setMiniActiva(i)}
-          >
-            <img
-              src={img}
-              alt={`Vista ${i + 1}`}
-              onError={(e) => {
-                (e.currentTarget.parentElement as HTMLElement).innerHTML = "a";
-              }}
-            />
+        {imagenPrincipal ? (
+          <img src={imagenPrincipal} alt={cancha.nombre} />
+        ) : (
+          <div className="galeria-placeholder">
+            <p>Sin imagen disponible</p>
           </div>
-        ))}
-
-        <div className="miniatura miniatura-mas">
-          <span>+ fotos</span>
-        </div>
+        )}
       </div>
+
+      {imagenes.length > 1 && (
+        <div className="galeria-miniaturas">
+          {imagenes.map((img: string, i: number) => (
+            <div
+              key={i}
+              className={`miniatura${miniActiva === i ? " active" : ""}`}
+              onClick={() => setMiniActiva(i)}
+            >
+              <img src={img} alt={`Vista ${i + 1}`} />
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -101,6 +128,15 @@ export default function CanchaPage() {
   const { id } = useParams();
 
   const [cancha, setCancha] = useState<any>(null);
+  const [estrellas, setEstrellas] = useState(5);
+  const [textoResena, setTextoResena] = useState("");
+  const [enviandoResena, setEnviandoResena] = useState(false);
+  const [mensajeResena, setMensajeResena] = useState("");
+  const [mensajeReserva, setMensajeReserva] = useState("");
+
+  const [editandoIndex, setEditandoIndex] = useState<number | null>(null);
+  const [textoEditado, setTextoEditado] = useState("");
+  const [estrellasEditadas, setEstrellasEditadas] = useState(5);
 
   const [usuario, setUsuario] = useState<Usuario | undefined>(undefined);
 
@@ -108,36 +144,219 @@ export default function CanchaPage() {
     setUsuario(getUsuarioSesion());
   }, []);
 
-  useEffect(() => {
-    fetch(`/api/canchas/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setCancha({
-          ...data,
-
-          descripcion: JSON.parse(data.descripcion || "[]"),
-
-          imagenes: JSON.parse(data.imagenes || "[]"),
-
-          caracteristicas: JSON.parse(
-            data.caracteristicas || "[]"
-          ),
-
-          horarios: JSON.parse(data.horarios || "[]"),
-
-          resenas: JSON.parse(data.resenas || "[]"),
-
-          disponible_hoy: Boolean(data.disponible_hoy),
-        });
-      })
-      .catch(console.error);
-  }, [id]);
-
-  if (!cancha) {
-    return <p>Cargando...</p>;
+  function formatearCancha(data: any) {
+    return {
+      ...data,
+      descripcion: parseJsonField(data.descripcion),
+      imagenes: parseJsonField(data.imagenes),
+      caracteristicas: parseJsonField(data.caracteristicas),
+      horarios: parseJsonField(data.horarios),
+      resenas: parseJsonField(data.resenas),
+      disponible_hoy:
+        data.estado === "activo" && Boolean(data.disponible_hoy),
+    };
   }
 
-  return (
+  async function cargarCancha() {
+    fetch(`/api/canchas/${id}`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("No se pudo cargar la cancha");
+        }
+
+        return res.json();
+      })
+      .then((data) => {
+        setCancha(formatearCancha(data));
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+  }
+
+  useEffect(() => {
+    cargarCancha();
+  }, [id]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const estadoReserva = params.get("reserva");
+    const sessionId = params.get("session_id");
+    const eventoId = params.get("eventoId");
+
+    async function procesarRetornoPago() {
+      if (estadoReserva === "success" && sessionId) {
+        setMensajeReserva("Confirmando pago con Stripe...");
+
+        try {
+          const res = await fetch("/api/reservas/confirmar", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ sessionId }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            throw new Error(data.message || "No se pudo confirmar el pago");
+          }
+
+          setMensajeReserva("Reserva confirmada. Tu pago fue aprobado.");
+          window.history.replaceState({}, "", window.location.pathname);
+        } catch (error: any) {
+          setMensajeReserva(error.message || "No se pudo confirmar la reserva.");
+        }
+      }
+
+      if (estadoReserva === "cancelada" && eventoId) {
+        setMensajeReserva("Pago cancelado. Liberando el horario...");
+
+        try {
+          await fetch(`/api/reservas/cancelar/${eventoId}`, {
+            method: "POST",
+          });
+          setMensajeReserva("Pago cancelado. El horario quedo disponible.");
+          window.history.replaceState({}, "", window.location.pathname);
+        } catch {
+          setMensajeReserva("Pago cancelado. Revisa la disponibilidad antes de intentar otra vez.");
+        }
+      }
+    }
+
+    procesarRetornoPago();
+  }, []);
+
+  async function enviarResena(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!usuario) {
+      setMensajeResena("Debes iniciar sesión para dejar una reseña.");
+      return;
+    }
+
+    if (!textoResena.trim()) {
+      setMensajeResena("Escribe un comentario antes de enviar.");
+      return;
+    }
+
+    setEnviandoResena(true);
+    setMensajeResena("");
+
+    try {
+      const res = await fetch(`/api/canchas/${id}/reviews`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: usuario.nombre,
+          email: usuario.email,
+          iniciales: usuario.iniciales,
+          foto: usuario.avatarUrl,
+          estrellas,
+          texto: textoResena,
+          fecha: new Date().toLocaleDateString("es-CO"),
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No se pudo guardar la reseña");
+      }
+
+      const data = await res.json();
+
+      setCancha(formatearCancha(data));
+      setTextoResena("");
+      setEstrellas(5);
+      setMensajeResena("Reseña publicada correctamente.");
+    } catch (error) {
+      setMensajeResena("No se pudo publicar la reseña.");
+    } finally {
+      setEnviandoResena(false);
+    }
+  }
+
+  function iniciarEdicion(index: number, resena: any) {
+    setEditandoIndex(index);
+    setTextoEditado(resena.texto || "");
+    setEstrellasEditadas(Number(resena.estrellas || 5));
+  }
+
+  function cancelarEdicion() {
+    setEditandoIndex(null);
+    setTextoEditado("");
+    setEstrellasEditadas(5);
+  }
+
+  async function guardarEdicion(index: number) {
+    if (!textoEditado.trim()) {
+      setMensajeResena("El comentario no puede quedar vacío.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/canchas/${id}/reviews/${index}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          texto: textoEditado,
+          estrellas: estrellasEditadas,
+          email: usuario?.email,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No se pudo editar la reseña");
+      }
+
+      const data = await res.json();
+
+      setCancha(formatearCancha(data));
+      cancelarEdicion();
+      setMensajeResena("Reseña editada correctamente.");
+    } catch (error) {
+      setMensajeResena("No se pudo editar la reseña.");
+    }
+  }
+
+  async function borrarResena(index: number) {
+    const confirmar = window.confirm("¿Seguro que quieres borrar esta reseña?");
+
+    if (!confirmar) return;
+
+    try {
+      const res = await fetch(`/api/canchas/${id}/reviews/${index}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: usuario?.email,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("No se pudo borrar la reseña");
+      }
+
+      const data = await res.json();
+
+      setCancha(formatearCancha(data));
+      setMensajeResena("Reseña eliminada correctamente.");
+    } catch (error) {
+      setMensajeResena("No se pudo eliminar la reseña.");
+    }
+  }
+
+  if (!cancha) {
+  return <p>Cargando...</p>;
+}
+
+return (
     <div
       style={{
         display: "flex",
@@ -148,178 +367,233 @@ export default function CanchaPage() {
       <Header usuario={usuario} />
 
       <main className="cancha-main">
+        <button
+          className="back-button cancha-back-button"
+          type="button"
+          onClick={() => window.history.back()}
+        >
+          ← Retroceder
+        </button>
+
         <nav className="breadcrumb">
           <a href="/">Inicio</a>
-
           <span>›</span>
-
           <a href="/canchas">Canchas</a>
-
           <span>›</span>
-
-          <span className="breadcrumb-active">
-            {cancha.nombre}
-          </span>
+          <span className="breadcrumb-active">{cancha.nombre}</span>
         </nav>
 
         <Galeria cancha={cancha} />
+
+        {mensajeReserva && (
+          <div className="reserva-alerta">
+            {mensajeReserva}
+          </div>
+        )}
 
         <div className="cancha-layout">
           <div className="cancha-info">
             <div className="cancha-header">
               <div>
                 <div className="cancha-badges">
-                  <span className="badge badge-tipo">
-                    {cancha.tipo}
-                  </span>
+                  <span className="badge badge-tipo">{cancha.tipo}</span>
 
-                  {cancha.disponible_hoy && (
+                  {cancha.estado === "activo" && cancha.disponible_hoy && (
                     <span className="badge badge-disponible">
                       Disponible hoy
                     </span>
                   )}
                 </div>
 
-                <h1 className="cancha-nombre">
-                  {cancha.nombre}
-                </h1>
+                <h1 className="cancha-nombre">{cancha.nombre}</h1>
 
                 <p className="cancha-ubicacion">
-                  {cancha.ubicacion} · A {cancha.distancia}
+                  {cancha.ubicacion}
+                  {cancha.distancia && ` · A ${cancha.distancia}`}
                 </p>
               </div>
 
               <div className="cancha-rating">
-                <span className="rating-numero">
-                  {cancha.rating}
-                </span>
+                <span className="rating-numero">{cancha.rating || 0}</span>
 
                 <div className="rating-estrellas">
-                  <Estrellas valor={Number(cancha.rating)} />
+                  <Estrellas valor={Number(cancha.rating || 0)} />
                 </div>
 
                 <span className="rating-reviews">
-                  {cancha.total_resenas} reseñas
+                  {cancha.total_resenas || 0} reseñas
                 </span>
               </div>
             </div>
 
             <div className="seccion">
-              <h2 className="seccion-titulo">
-                Descripción
-              </h2>
+              <h2 className="seccion-titulo">Descripción</h2>
 
-              {cancha.descripcion.map(
-                (parrafo: string, i: number) => (
-                  <p key={i} className="cancha-desc">
-                    {parrafo}
-                  </p>
+              {(cancha.descripcion || []).map((parrafo: string, i: number) => (
+                <p key={i} className="cancha-desc">
+                  {parrafo}
+                </p>
+              ))}
+            </div>
+
+            <div className="seccion">
+              <h2 className="seccion-titulo">Características</h2>
+
+              {(cancha.caracteristicas || []).length > 0 ? (
+                (cancha.caracteristicas || []).map(
+                  (caracteristica: string, i: number) => (
+                    <p key={i} className="cancha-desc">
+                      {caracteristica}
+                    </p>
+                  )
                 )
+              ) : (
+                <p className="cancha-desc">
+                  No hay características registradas.
+                </p>
               )}
             </div>
 
             <div className="seccion">
               <h2 className="seccion-titulo">
-                Características
-              </h2>
-
-              <div className="caracteristicas-grid">
-                {cancha.caracteristicas.map(
-                  (c: any, index: number) => (
-                    <div
-                      key={index}
-                      className="caract-item"
-                    >
-                      {c.icono && (
-                        <span className="caract-icon">
-                          {c.icono}
-                        </span>
-                      )}
-
-                      <div>
-                        <p className="caract-label">
-                          {c.label}
-                        </p>
-
-                        <p className="caract-valor">
-                          {c.valor}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-
-            <div className="seccion">
-              <h2 className="seccion-titulo">
-                Horarios disponibles
-              </h2>
-
-              <div className="horarios-semana">
-                {cancha.horarios.map(
-                  (h: any, index: number) => (
-                    <div
-                      key={index}
-                      className={`dia-item${
-                        h.esFinde ? " dia-finde" : ""
-                      }`}
-                    >
-                      <span className="dia-nombre">
-                        {h.dia}
-                      </span>
-
-                      <span className="dia-horas">
-                        {h.horas}
-                      </span>
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-
-            <div className="seccion">
-              <h2 className="seccion-titulo">
                 Reseñas
-
                 <span className="reseñas-count">
-                  ({cancha.total_resenas})
+                  ({cancha.total_resenas || 0})
                 </span>
               </h2>
 
+              <form className="reseña-form" onSubmit={enviarResena}>
+                <h3>Deja tu reseña</h3>
+
+                <label>
+                  Calificación
+                  <select
+                    value={estrellas}
+                    onChange={(e) => setEstrellas(Number(e.target.value))}
+                  >
+                    <option value={5}>5 estrellas</option>
+                    <option value={4}>4 estrellas</option>
+                    <option value={3}>3 estrellas</option>
+                    <option value={2}>2 estrellas</option>
+                    <option value={1}>1 estrella</option>
+                  </select>
+                </label>
+
+                <label>
+                  Comentario
+                  <textarea
+                    value={textoResena}
+                    onChange={(e) => setTextoResena(e.target.value)}
+                    placeholder="Cuéntanos cómo fue tu experiencia..."
+                    rows={4}
+                  />
+                </label>
+
+                {mensajeResena && (
+                  <p className="reseña-mensaje">{mensajeResena}</p>
+                )}
+
+                <button type="submit" disabled={enviandoResena}>
+                  {enviandoResena ? "Publicando..." : "Publicar reseña"}
+                </button>
+              </form>
+
               <div className="reseñas-lista">
-                {cancha.resenas.map(
-                  (r: any, index: number) => (
-                    <div
-                      key={index}
-                      className="reseña-card"
-                    >
+                {(cancha.resenas || []).map((r: any, index: number) => {
+                  const puedeModificar = usuarioPuedeModificarResena(usuario, r);
+                  const estaEditando = editandoIndex === index;
+
+                  return (
+                    <div key={index} className="reseña-card">
                       <div className="reseña-header">
-                        <div className="reseña-avatar">
-                          {r.iniciales}
-                        </div>
+                        {r.foto || r.avatarUrl || r.photo ? (
+                          <img
+                            src={r.foto || r.avatarUrl || r.photo}
+                            alt={r.nombre || "Usuario"}
+                            className="reseña-avatar-img"
+                          />
+                        ) : (
+                          <div className="reseña-avatar">
+                            {r.iniciales || getInitials(r.nombre || "Usuario")}
+                          </div>
+                        )}
 
                         <div>
-                          <p className="reseña-nombre">
-                            {r.nombre}
-                          </p>
-
-                          <p className="reseña-fecha">
-                            {r.fecha}
-                          </p>
+                          <p className="reseña-nombre">{r.nombre}</p>
+                          <p className="reseña-fecha">{r.fecha}</p>
                         </div>
 
                         <div className="reseña-stars">
-                          <Estrellas valor={r.estrellas} />
+                          <Estrellas valor={r.estrellas || 0} />
                         </div>
                       </div>
 
-                      <p className="reseña-texto">
-                        {r.texto}
-                      </p>
+                      {estaEditando ? (
+                        <div className="reseña-edit-form">
+                          <label>
+                            Calificación
+                            <select
+                              value={estrellasEditadas}
+                              onChange={(e) =>
+                                setEstrellasEditadas(Number(e.target.value))
+                              }
+                            >
+                              <option value={5}>5 estrellas</option>
+                              <option value={4}>4 estrellas</option>
+                              <option value={3}>3 estrellas</option>
+                              <option value={2}>2 estrellas</option>
+                              <option value={1}>1 estrella</option>
+                            </select>
+                          </label>
+
+                          <label>
+                            Comentario
+                            <textarea
+                              value={textoEditado}
+                              onChange={(e) => setTextoEditado(e.target.value)}
+                              rows={3}
+                            />
+                          </label>
+
+                          <div className="reseña-actions">
+                            <button
+                              type="button"
+                              onClick={() => guardarEdicion(index)}
+                            >
+                              Guardar
+                            </button>
+
+                            <button type="button" onClick={cancelarEdicion}>
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="reseña-texto">{r.texto}</p>
+
+                          {puedeModificar && (
+                            <div className="reseña-actions">
+                              <button
+                                type="button"
+                                onClick={() => iniciarEdicion(index, r)}
+                              >
+                                Editar
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => borrarResena(index)}
+                              >
+                                Borrar
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
-                  )
-                )}
+                  );
+                })}
               </div>
             </div>
           </div>
