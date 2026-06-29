@@ -113,7 +113,7 @@
   color: #17210f;
 }
 
-.manager-message p {
+.manager-message .assistant-markdown {
   margin: 0;
   padding: 12px 14px;
   border-radius: 8px;
@@ -124,9 +124,64 @@
   overflow-wrap: anywhere;
 }
 
-.manager-message.user p {
+.manager-message.user .assistant-markdown {
   background: #117a37;
   color: #ffffff;
+}
+
+.assistant-markdown > :first-child {
+  margin-top: 0;
+}
+
+.assistant-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.assistant-markdown p,
+.assistant-markdown ul,
+.assistant-markdown ol {
+  margin: 0 0 10px;
+}
+
+.assistant-markdown ul,
+.assistant-markdown ol {
+  padding-left: 20px;
+}
+
+.assistant-markdown li + li {
+  margin-top: 4px;
+}
+
+.assistant-markdown a {
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.assistant-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.assistant-markdown th,
+.assistant-markdown td {
+  border: 1px solid rgba(17, 122, 55, 0.18);
+  padding: 7px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.assistant-markdown img {
+  display: block;
+  width: min(100%, 340px);
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin: 10px 0;
+  border: 1px solid rgba(17, 122, 55, 0.16);
 }
 
 .manager-assistant-error {
