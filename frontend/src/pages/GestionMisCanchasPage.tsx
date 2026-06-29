@@ -43,6 +43,14 @@ function getUser() {
   return raw ? JSON.parse(raw) : null;
 }
 
+function getAuthHeaders(includeJson = false) {
+  const token = localStorage.getItem("communifield_token");
+  return {
+    ...(includeJson ? { "Content-Type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 function getUsuarioHeader(): Usuario | undefined {
   const user = getUser();
   if (!user) return undefined;
@@ -131,7 +139,9 @@ export default function GestionMisCanchasPage() {
       setCargando(true);
       setError("");
 
-      const res = await fetch(`/api/canchas/gestor/${userId}`);
+      const res = await fetch(`/api/canchas/gestor/${userId}`, {
+        headers: getAuthHeaders(),
+      });
 
       if (!res.ok) {
         throw new Error("No se pudieron cargar tus canchas");
@@ -234,9 +244,7 @@ export default function GestionMisCanchasPage() {
 
     const res = await fetch(url, {
       method,
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getAuthHeaders(true),
       body: JSON.stringify(payload),
     });
 
@@ -261,10 +269,12 @@ async function borrarCancha(cancha: Cancha) {
 
   const res = await fetch(`/api/canchas/${cancha.id_espacio}`, {
     method: "DELETE",
+    headers: getAuthHeaders(),
   });
 
   if (!res.ok) {
-    alert("No se pudo borrar la cancha");
+    const data = await res.json().catch(() => ({}));
+    alert(data.message || "No se pudo borrar la cancha");
     return;
   }
 

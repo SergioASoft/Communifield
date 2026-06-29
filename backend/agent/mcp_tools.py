@@ -61,8 +61,148 @@ def _table_exists(table_name: str) -> bool:
     return bool(rows and int(rows[0].get("total") or 0) > 0)
 
 
+def _parse_json_list(value: Any) -> list[Any]:
+    if not value:
+        return []
+
+    if isinstance(value, list):
+        return value
+
+    try:
+        parsed = json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return [value] if isinstance(value, str) else []
+
+    if isinstance(parsed, list):
+        return parsed
+
+    return [parsed] if parsed else []
+
+
+def _compact_image_refs(row: dict[str, Any], limit: int = 4) -> list[str]:
+    images: list[str] = []
+    principal = row.get("imagen_principal")
+    if isinstance(principal, str) and principal.strip():
+        images.append(principal.strip())
+
+    for image in _parse_json_list(row.get("imagenes")):
+        if isinstance(image, str) and image.strip():
+            images.append(image.strip())
+        elif isinstance(image, dict):
+            value = image.get("url") or image.get("src") or image.get("dataUrl") or image.get("image")
+            if isinstance(value, str) and value.strip():
+                images.append(value.strip())
+
+    unique_images = list(dict.fromkeys(images))
+    return unique_images[:limit]
+
+
+def _surface_gear_tip(surface: str | None) -> str:
+    normalized = (surface or "").lower()
+    if "sint" in normalized or "artificial" in normalized:
+        return "Guayos multitaco, turf o suela AG; evitar taches muy largos para cuidar la superficie y ganar traccion."
+    if "natural" in normalized or "cesped" in normalized or "césped" in normalized:
+        return "Guayos FG si el campo esta firme; SG o tache mas largo solo si la cancha esta humeda o blanda."
+    if "cemento" in normalized or "asfalto" in normalized or "dura" in normalized:
+        return "Tenis de futbol sala o suela lisa con buena amortiguacion; evitar guayos con taches."
+    if "arena" in normalized:
+        return "Calzado ligero o juego descalzo si la administracion lo permite; priorizar medias y proteccion contra friccion."
+    if "madera" in normalized or "indoor" in normalized or "sala" in normalized:
+        return "Tenis indoor de suela non-marking con buen agarre lateral."
+    return "Revisar el agarre real de la superficie y recomendar suela estable, comoda y permitida por la cancha."
+
+
+def _normalize_day_name(day_index: int) -> str:
+    names = ["lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo"]
+    return names[day_index] if 0 <= day_index < len(names) else str(day_index)
+
+
+def court_catalog(arguments: dict[str, Any]) -> dict[str, Any]:
+    owner_id = int(arguments.get("owner_id") or 0)
+    court_id = int(arguments.get("court_id") or 0)
+    include_images = bool(arguments.get("include_images"))
+
+    rows = _query(
+        """
+        SELECT
+          ES.id_espacio,
+          ES.fk_id_dueño AS owner_id,
+          ES.nombre,
+          ES.tipo,
+          ES.ubicacion,
+          ES.distancia,
+          ES.superficie,
+          ES.precio_hora,
+          ES.rating,
+          ES.total_resenas,
+          ES.disponible_hoy,
+          ES.imagen_principal,
+          ES.imagenes,
+          ES.estado,
+          COUNT(E.id_evento) AS reservas_totales,
+          COALESCE(SUM(CASE WHEN P.estado = 'pagado' THEN P.total ELSE 0 END), 0) AS ingresos_pagados
+        FROM ESPACIO ES
+        LEFT JOIN EVENTO E ON E.fk_id_espacio = ES.id_espacio
+        LEFT JOIN PAGO P ON P.fk_id_evento = E.id_evento
+        WHERE (%s = 0 OR ES.fk_id_dueño = %s)
+          AND (%s = 0 OR ES.id_espacio = %s)
+        GROUP BY
+          ES.id_espacio,
+          ES.fk_id_dueño,
+          ES.nombre,
+          ES.tipo,
+          ES.ubicacion,
+          ES.distancia,
+          ES.superficie,
+          ES.precio_hora,
+          ES.rating,
+          ES.total_resenas,
+          ES.disponible_hoy,
+          ES.imagen_principal,
+          ES.imagenes,
+          ES.estado
+        ORDER BY ES.estado = 'activo' DESC, ingresos_pagados DESC, ES.id_espacio DESC
+        LIMIT 12;
+        """,
+        (owner_id, owner_id, court_id, court_id),
+    )
+
+    courts = []
+    for row in rows:
+        images = _compact_image_refs(row)
+        court = {
+            "id_espacio": row.get("id_espacio"),
+            "owner_id": row.get("owner_id"),
+            "nombre": row.get("nombre"),
+            "tipo": row.get("tipo"),
+            "ubicacion": row.get("ubicacion"),
+            "superficie": row.get("superficie"),
+            "precio_hora": row.get("precio_hora"),
+            "rating": row.get("rating"),
+            "total_resenas": row.get("total_resenas"),
+            "disponible_hoy": row.get("disponible_hoy"),
+            "estado": row.get("estado"),
+            "reservas_totales": row.get("reservas_totales"),
+            "ingresos_pagados": row.get("ingresos_pagados"),
+            "gear_tip": _surface_gear_tip(row.get("superficie")),
+            "image_count": len(images),
+        }
+        if include_images:
+            court["images"] = images
+        courts.append(court)
+
+    return {
+        "owner_id": owner_id,
+        "court_id": court_id,
+        "include_images": include_images,
+        "courts": courts,
+        "summary": json.dumps(courts, ensure_ascii=True, default=_json_default),
+    }
+
+
 def revenue_metrics_by_court(arguments: dict[str, Any]) -> dict[str, Any]:
     court_id = int(arguments.get("court_id") or 0)
+    owner_id = int(arguments.get("owner_id") or 0)
     rows = _query(
         """
         SELECT
@@ -72,17 +212,20 @@ def revenue_metrics_by_court(arguments: dict[str, Any]) -> dict[str, Any]:
           COALESCE(SUM(P.total), 0) AS ingresos_totales,
           COALESCE(AVG(P.total / GREATEST(TIMESTAMPDIFF(HOUR, E.fecha_inic, E.fecha_fin), 1)), 0) AS tarifa_promedio_hora
         FROM EVENTO E
+        INNER JOIN ESPACIO ES ON ES.id_espacio = E.fk_id_espacio
         INNER JOIN PAGO P ON E.id_evento = P.fk_id_evento
         WHERE P.estado = 'pagado'
           AND (%s = 0 OR E.fk_id_espacio = %s)
+          AND (%s = 0 OR ES.fk_id_dueño = %s)
         GROUP BY dia_semana, indice_dia
         ORDER BY indice_dia;
         """,
-        (court_id, court_id),
+        (court_id, court_id, owner_id, owner_id),
     )
 
     return {
         "court_id": court_id,
+        "owner_id": owner_id,
         "rows": rows,
         "summary": json.dumps(rows, ensure_ascii=True, default=_json_default),
     }
@@ -90,6 +233,7 @@ def revenue_metrics_by_court(arguments: dict[str, Any]) -> dict[str, Any]:
 
 def courts_operational_snapshot(arguments: dict[str, Any]) -> dict[str, Any]:
     days = max(1, min(int(arguments.get("days") or 7), 30))
+    owner_id = int(arguments.get("owner_id") or 0)
     rows = _query(
         """
         SELECT
@@ -107,16 +251,120 @@ def courts_operational_snapshot(arguments: dict[str, Any]) -> dict[str, Any]:
          AND E.fecha_inic >= NOW()
          AND E.fecha_inic < DATE_ADD(NOW(), INTERVAL %s DAY)
         LEFT JOIN PAGO P ON P.fk_id_evento = E.id_evento
+        WHERE (%s = 0 OR ES.fk_id_dueño = %s)
         GROUP BY ES.id_espacio, ES.nombre, ES.tipo, ES.estado, ES.precio_hora, ES.disponible_hoy
         ORDER BY ES.id_espacio;
         """,
-        (days,),
+        (days, owner_id, owner_id),
     )
 
     return {
         "days": days,
+        "owner_id": owner_id,
         "rows": rows,
         "summary": json.dumps(rows, ensure_ascii=True, default=_json_default),
+    }
+
+
+def manager_court_event_statistics(arguments: dict[str, Any]) -> dict[str, Any]:
+    owner_id = int(arguments.get("owner_id") or 0)
+    court_id = int(arguments.get("court_id") or 0)
+    rows = _query(
+        """
+        SELECT
+          ES.id_espacio,
+          ES.nombre,
+          ES.estado,
+          COUNT(E.id_evento) AS eventos_registrados,
+          SUM(CASE WHEN E.fecha_inic >= NOW() THEN 1 ELSE 0 END) AS eventos_proximos,
+          SUM(CASE WHEN E.fecha_inic < NOW() THEN 1 ELSE 0 END) AS eventos_historicos,
+          COALESCE(SUM(CASE WHEN P.estado = 'pagado' THEN P.total ELSE 0 END), 0) AS ingresos_pagados
+        FROM ESPACIO ES
+        LEFT JOIN EVENTO E ON E.fk_id_espacio = ES.id_espacio
+        LEFT JOIN PAGO P ON P.fk_id_evento = E.id_evento
+        WHERE (%s = 0 OR ES.fk_id_dueño = %s)
+          AND (%s = 0 OR ES.id_espacio = %s)
+        GROUP BY ES.id_espacio, ES.nombre, ES.estado
+        ORDER BY eventos_registrados DESC, ES.id_espacio DESC;
+        """,
+        (owner_id, owner_id, court_id, court_id),
+    )
+    total_events = sum(int(row.get("eventos_registrados") or 0) for row in rows)
+
+    return {
+        "owner_id": owner_id,
+        "court_id": court_id,
+        "total_eventos_registrados": total_events,
+        "by_court": rows,
+        "summary": json.dumps(
+            {"total_eventos_registrados": total_events, "by_court": rows},
+            ensure_ascii=True,
+            default=_json_default,
+        ),
+    }
+
+
+def open_match_day_recommendations(arguments: dict[str, Any]) -> dict[str, Any]:
+    court_id = int(arguments.get("court_id") or 0)
+    owner_id = int(arguments.get("owner_id") or 0)
+    rows = _query(
+        """
+        SELECT
+          WEEKDAY(E.fecha_inic) AS indice_dia,
+          DAYNAME(E.fecha_inic) AS dia_semana,
+          COUNT(E.id_evento) AS reservas,
+          COALESCE(SUM(CASE WHEN P.estado = 'pagado' THEN P.total ELSE 0 END), 0) AS ingresos_pagados,
+          COALESCE(AVG(TIMESTAMPDIFF(MINUTE, E.fecha_inic, E.fecha_fin)), 0) AS duracion_promedio_minutos,
+          COALESCE(AVG(HOUR(E.fecha_inic)), 0) AS hora_promedio_inicio
+        FROM EVENTO E
+        INNER JOIN ESPACIO ES ON ES.id_espacio = E.fk_id_espacio
+        LEFT JOIN PAGO P ON P.fk_id_evento = E.id_evento
+        WHERE (%s = 0 OR E.fk_id_espacio = %s)
+          AND (%s = 0 OR ES.fk_id_dueño = %s)
+        GROUP BY indice_dia, dia_semana
+        ORDER BY indice_dia;
+        """,
+        (court_id, court_id, owner_id, owner_id),
+    )
+
+    indexed = {int(row["indice_dia"]): row for row in rows if row.get("indice_dia") is not None}
+    max_reservas = max((int(row.get("reservas") or 0) for row in rows), default=0)
+    recommendations = []
+
+    for index in range(7):
+        row = indexed.get(index, {})
+        reservas = int(row.get("reservas") or 0)
+        ingresos = float(row.get("ingresos_pagados") or 0)
+        if max_reservas <= 0:
+            score = 70 if index in [4, 5, 6] else 55
+        else:
+            score = round((reservas / max_reservas) * 100)
+
+        if score >= 75:
+            reason = "alta demanda historica; ideal para partidos abiertos con lista de espera o cupos ampliados."
+        elif score >= 45:
+            reason = "demanda media; buen dia para activar partidos abiertos con promocion temprana."
+        else:
+            reason = "demanda baja; puede servir para llenar horarios flojos con precio o beneficio especial."
+
+        recommendations.append(
+            {
+                "day_index": index,
+                "day": _normalize_day_name(index),
+                "reservas": reservas,
+                "ingresos_pagados": ingresos,
+                "score": score,
+                "reason": reason,
+                "hora_promedio_inicio": row.get("hora_promedio_inicio"),
+            }
+        )
+
+    ranked = sorted(recommendations, key=lambda item: item["score"], reverse=True)
+    return {
+        "court_id": court_id,
+        "owner_id": owner_id,
+        "recommendations": ranked,
+        "summary": json.dumps(ranked, ensure_ascii=True, default=_json_default),
     }
 
 
@@ -338,6 +586,40 @@ class MCPToolRegistry:
                     "properties": {"days": {"type": "integer", "description": "Ventana de analisis entre 1 y 30 dias."}},
                 },
                 "handler": courts_operational_snapshot,
+            },
+            "manager_court_event_statistics": {
+                "description": "Consulta eventos registrados por cancha, filtrado por gestor cuando owner_id esta presente.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "owner_id": {"type": "integer", "description": "Id del gestor. 0 para todas las canchas solo en contexto admin."},
+                        "court_id": {"type": "integer", "description": "0 para todas las canchas del gestor."},
+                    },
+                },
+                "handler": manager_court_event_statistics,
+            },
+            "court_catalog": {
+                "description": "Consulta catalogo enriquecido de canchas con superficie, fotos, precio, estado y recomendacion de indumentaria.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "owner_id": {"type": "integer", "description": "0 para todas las canchas o id del gestor."},
+                        "court_id": {"type": "integer", "description": "0 para todas las canchas."},
+                        "include_images": {"type": "boolean", "description": "Incluye referencias de fotos para mostrarlas."},
+                    },
+                },
+                "handler": court_catalog,
+            },
+            "open_match_day_recommendations": {
+                "description": "Recomienda dias de la semana para partidos abiertos segun demanda historica e ingresos.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "court_id": {"type": "integer", "description": "0 para todas las canchas."},
+                        "owner_id": {"type": "integer", "description": "0 para todas las canchas o id del gestor."},
+                    },
+                },
+                "handler": open_match_day_recommendations,
             },
             "admin_user_statistics": {
                 "description": "Estadisticas administrativas de usuarios por tipo, calidad de perfil y ultimos usuarios.",
