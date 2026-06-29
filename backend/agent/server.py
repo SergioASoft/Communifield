@@ -104,7 +104,7 @@ class AgentHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("AI_AGENT_PORT", "8001"))
-    server = ThreadingHTTPServer(("127.0.0.1", port), AgentHandler)
-    print(f"CommuniField Python AI agent running on http://127.0.0.1:{port}")
+    port = int(os.getenv("PORT", os.getenv("AI_AGENT_PORT", "8001")))
+    server = ThreadingHTTPServer(("0.0.0.0", port), AgentHandler)
+    print(f"CommuniField Python AI agent running on port {port}")
     server.serve_forever()
