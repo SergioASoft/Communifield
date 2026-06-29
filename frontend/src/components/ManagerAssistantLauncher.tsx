@@ -5,6 +5,7 @@ import {
   sendManagerAssistantMessage,
   type AssistantChatMessage,
 } from "../services/assistantService";
+import { AssistantMarkdown } from "./AssistantMarkdown";
 import "./ManagerAssistantLauncher.css";
 
 type TokenPayload = {
@@ -140,7 +141,7 @@ export function ManagerAssistantLauncher() {
                   <div className="manager-message-avatar" aria-hidden="true">
                     {message.role === "assistant" ? <Bot size={17} /> : "T"}
                   </div>
-                  <p>{message.content}</p>
+                  <AssistantMarkdown content={message.content} />
                 </article>
               ))}
 
@@ -149,7 +150,7 @@ export function ManagerAssistantLauncher() {
                   <div className="manager-message-avatar" aria-hidden="true">
                     <LoaderCircle className="manager-spin" size={17} />
                   </div>
-                  <p>Consultando Gemini y datos de CommuniField...</p>
+                  <AssistantMarkdown content="Consultando Gemini y datos de CommuniField..." />
                 </article>
               )}
             </div>

@@ -111,7 +111,7 @@ export class CanchaService {
     return this.getById(result.insertId);
   }
 
-  static async update(id: number, data: any) {
+  static async update(id: number, data: any, ownerId?: number) {
     const {
       nombre,
       tipo,
@@ -129,7 +129,7 @@ export class CanchaService {
       estado,
     } = data;
 
-    await pool.query(
+    const [result]: any = await pool.query(
       `
       UPDATE ESPACIO
       SET
@@ -148,6 +148,7 @@ export class CanchaService {
         imagenes = ?,
         estado = ?
       WHERE id_espacio = ?
+        AND (? IS NULL OR fk_id_dueño = ?)
       `,
       [
         nombre,
@@ -165,22 +166,71 @@ export class CanchaService {
         toJson(imagenes),
         estado ?? "activo",
         id,
+        ownerId ?? null,
+        ownerId ?? null,
       ]
     );
+
+    if (!result.affectedRows) return null;
 
     return this.getById(id);
   }
 
-  static async delete(id: number) {
-    await pool.query(
+  static async delete(id: number, ownerId?: number) {
+    const cancha: any = ownerId ? await this.getByIdForOwner(id, ownerId) : await this.getById(id);
+    if (!cancha) return { found: false, deleted: false, archived: false };
+
+    const [eventRows]: any = await pool.query(
       `
-      DELETE FROM ESPACIO
-      WHERE id_espacio = ?
+      SELECT COUNT(*) AS total
+      FROM EVENTO
+      WHERE fk_id_espacio = ?
       `,
       [id]
     );
+    const totalEventos = Number(eventRows?.[0]?.total || 0);
 
-    return true;
+    if (totalEventos > 0) {
+      await pool.query(
+        `
+        UPDATE ESPACIO
+        SET estado = 'inactivo',
+            disponible_hoy = FALSE,
+            fecha_desact = COALESCE(fecha_desact, NOW())
+        WHERE id_espacio = ?
+          AND (? IS NULL OR fk_id_dueño = ?)
+        `,
+        [id, ownerId ?? null, ownerId ?? null]
+      );
+
+      return { found: true, deleted: false, archived: true, events: totalEventos };
+    }
+
+    const [result]: any = await pool.query(
+      `
+      DELETE FROM ESPACIO
+      WHERE id_espacio = ?
+        AND (? IS NULL OR fk_id_dueño = ?)
+      `,
+      [id, ownerId ?? null, ownerId ?? null]
+    );
+
+    return { found: true, deleted: true, archived: false, events: 0 };
+  }
+
+  private static async getByIdForOwner(id: number, ownerId: number) {
+    const [rows]: any = await pool.query(
+      `
+      SELECT *
+      FROM ESPACIO
+      WHERE id_espacio = ?
+        AND fk_id_dueño = ?
+      LIMIT 1
+      `,
+      [id, ownerId]
+    );
+
+    return rows[0];
   }
 
   static async addReview(id: number, data: any) {
@@ -218,10 +268,10 @@ export class CanchaService {
     WHERE id_espacio = ?
     `,
     [JSON.stringify(resenas), rating, totalResenas, id]
-  );
+    );
 
-  return this.getById(id);
-}
+    return this.getById(id);
+  }
   static async updateReview(
   id: number,
   index: number,

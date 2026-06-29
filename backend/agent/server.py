@@ -76,7 +76,15 @@ class AgentHandler(BaseHTTPRequestHandler):
                     return
 
                 channel = str(payload.get("channel") or "admin")
-                self._send_json(200, agent.answer(message, payload.get("conversation") or [], channel))
+                self._send_json(
+                    200,
+                    agent.answer(
+                        message,
+                        payload.get("conversation") or [],
+                        channel,
+                        payload.get("user") or None,
+                    ),
+                )
                 return
 
             if self.path == "/mcp/call":

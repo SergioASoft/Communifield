@@ -5,6 +5,7 @@ import {
   sendAdminAssistantMessage,
   type AssistantChatMessage,
 } from "../../services/assistantService";
+import { AssistantMarkdown } from "../AssistantMarkdown";
 
 const initialMessages: AssistantChatMessage[] = [
   {
@@ -64,7 +65,7 @@ export function AdminAssistant() {
               <div className="assistant-message-icon" aria-hidden="true">
                 {message.role === "assistant" ? <Bot size={18} /> : <UserRound size={18} />}
               </div>
-              <p>{message.content}</p>
+              <AssistantMarkdown content={message.content} />
             </article>
           ))}
 
@@ -73,7 +74,7 @@ export function AdminAssistant() {
               <div className="assistant-message-icon" aria-hidden="true">
                 <LoaderCircle className="spin-icon" size={18} />
               </div>
-              <p>Analizando datos de CommuniField...</p>
+              <AssistantMarkdown content="Analizando datos de CommuniField..." />
             </article>
           )}
         </div>
