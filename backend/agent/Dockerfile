@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Copiamos solo las dependencias primero
+# Copiamos las dependencias
 COPY agent/requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
@@ -11,5 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY agent ./agent
 
 ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8001
 
 CMD ["python", "agent/server.py"]
