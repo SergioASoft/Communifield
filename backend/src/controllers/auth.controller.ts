@@ -124,7 +124,7 @@ export async function register(req: Request, res: Response) {
     env.jwtSecret,
     { expiresIn: "5m" }
   );
-/*
+
   try {
     await transporter.sendMail({
     from: process.env.SMTP_FROM,
@@ -165,10 +165,7 @@ export async function register(req: Request, res: Response) {
     return res.status(500).json({
         message: "No fue posible enviar el correo de verificación."
     });
-}*/
-  return res.status(201).json({
-    message: "Registro de prueba correcto"
-});
+}
 }
 
 export async function login(req: Request, res: Response) {
