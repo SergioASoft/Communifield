@@ -163,12 +163,15 @@ export async function register(req: Request, res: Response) {
 
 export async function login(req: Request, res: Response) {
   try {
-    console.log("=== LOGIN ===");
-    console.log(req.body);
+    console.log("========== LOGIN ==========");
+    console.log("1. Body recibido:", req.body);
 
     const parsed = loginSchema.safeParse(req.body);
 
+    console.log("2. Schema validado");
+
     if (!parsed.success) {
+      console.log("Schema inválido");
       return res.status(400).json({
         message: "Datos inválidos",
         errors: parsed.error.flatten().fieldErrors,
@@ -177,27 +180,34 @@ export async function login(req: Request, res: Response) {
 
     const { email, password } = parsed.data;
 
+    console.log("3. Email:", email);
+
     const [rows] = await pool.query<UserRow[]>(
       `SELECT ${userColumns} FROM USUARIO WHERE email = ? LIMIT 1`,
       [email]
     );
 
-    console.log("Usuario encontrado:", rows.length);
+    console.log("4. Query ejecutada correctamente");
 
     const user = rows[0];
 
+    console.log("5. Usuario encontrado:", user);
+
     if (!user || !user.password_hash) {
+      console.log("Usuario no encontrado");
       return res.status(401).json({
         message: "Correo o contraseña incorrectos",
       });
     }
+
+    console.log("6. Comparando contraseña...");
 
     const validPassword = await comparePassword(
       password,
       user.password_hash
     );
 
-    console.log("Password válida:", validPassword);
+    console.log("7. Contraseña válida:", validPassword);
 
     if (!validPassword) {
       return res.status(401).json({
@@ -213,9 +223,15 @@ export async function login(req: Request, res: Response) {
       role: roleFromType(user.type),
     };
 
+    console.log("8. Creando JWT...");
+
     const token = signToken(tokenUser);
 
+    console.log("9. JWT creado");
+
     const publicData = publicUser(user);
+
+    console.log("10. Enviando respuesta");
 
     return res.json({
       message: "Inicio de sesión exitoso",
@@ -225,9 +241,11 @@ export async function login(req: Request, res: Response) {
       expiresIn: env.jwtExpiresIn,
     });
 
-  } catch (err) {
-    console.error("ERROR LOGIN:");
-    console.error(err);
+  } catch (error) {
+    console.error("==================================");
+    console.error("ERROR EN LOGIN");
+    console.error(error);
+    console.error("==================================");
 
     return res.status(500).json({
       message: "Error interno",
