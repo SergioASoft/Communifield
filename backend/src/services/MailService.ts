@@ -18,8 +18,7 @@ export async function sendVerificationEmail(to: string, verificationUrl: string)
     subject: "Verifica tu cuenta en CommuniField",
     html: `
       <h2>Verifica tu cuenta</h2>
-      <p>Gracias por registrarte en CommuniField.</p>
-      <p>Haz clic en el siguiente enlace para verificar tu cuenta:</p>
+      <p>Gracias por registrarte.</p>
       <a href="${verificationUrl}">${verificationUrl}</a>
     `,
   });
@@ -29,11 +28,9 @@ export async function sendResetPasswordEmail(to: string, resetUrl: string) {
   await transporter.sendMail({
     from: env.smtpFrom,
     to,
-    subject: "Recupera tu contraseña en CommuniField",
+    subject: "Recupera tu contraseña",
     html: `
       <h2>Recuperar contraseña</h2>
-      <p>Recibimos una solicitud para cambiar tu contraseña.</p>
-      <p>Haz clic en el siguiente enlace:</p>
       <a href="${resetUrl}">${resetUrl}</a>
     `,
   });

@@ -124,8 +124,9 @@ export async function register(req: Request, res: Response) {
     env.jwtSecret,
     { expiresIn: "5m" }
   );
-
-  await transporter.sendMail({
+/*
+  try {
+    await transporter.sendMail({
     from: process.env.SMTP_FROM,
     to: email,
     subject: "Verifica tu cuenta - CommuniField",
@@ -155,10 +156,19 @@ export async function register(req: Request, res: Response) {
       </div>
     `,
   });
-
   return res.status(201).json({
     message: "Registro exitoso. Revisa tu correo para verificar la cuenta.",
   });
+} catch (err) {
+    console.error("ERROR enviando correo");
+    console.error(err);
+    return res.status(500).json({
+        message: "No fue posible enviar el correo de verificación."
+    });
+}*/
+  return res.status(201).json({
+    message: "Registro de prueba correcto"
+});
 }
 
 export async function login(req: Request, res: Response) {
