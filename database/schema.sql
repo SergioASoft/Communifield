@@ -125,7 +125,55 @@ CREATE TABLE PAGO_SUSCRIPCION (
 );
 
 -- =====================================================================
--- 🔗 7. LLAVES FORÁNEAS CIRCULARES Y ALTERACIONES
+-- 7. TABLAS DE ESPACIOS ABIERTOS
+-- =====================================================================
+
+CREATE TABLE ESPACIO_ABIERTO (
+    id_espacio_abierto INT AUTO_INCREMENT PRIMARY KEY,
+    fk_id_evento INT NOT NULL,
+    fk_id_gestor INT NOT NULL,
+    estado ENUM('abierto', 'completo', 'cancelado') DEFAULT 'abierto',
+    precio_total DECIMAL(10,2) NOT NULL,
+    cuota_participante DECIMAL(10,2) NOT NULL,
+    max_participantes INT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (fk_id_evento)
+        REFERENCES EVENTO(id_evento),
+
+    FOREIGN KEY (fk_id_gestor)
+        REFERENCES USUARIO(id_usuario)
+);
+
+CREATE TABLE ESPACIO_ABIERTO_PARTICIPANTE (
+    id_participacion INT AUTO_INCREMENT PRIMARY KEY,
+    fk_id_espacio_abierto INT NOT NULL,
+    fk_id_usuario INT NOT NULL,
+    fk_id_pago INT NOT NULL,
+
+    estado ENUM('pendiente', 'pagado', 'cancelado')
+        DEFAULT 'pagado',
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    UNIQUE KEY uq_espacio_abierto_usuario (
+        fk_id_espacio_abierto,
+        fk_id_usuario
+    ),
+
+    FOREIGN KEY (fk_id_espacio_abierto)
+        REFERENCES ESPACIO_ABIERTO(id_espacio_abierto),
+
+    FOREIGN KEY (fk_id_usuario)
+        REFERENCES USUARIO(id_usuario),
+
+    FOREIGN KEY (fk_id_pago)
+        REFERENCES PAGO(id_pago)
+);
+
+-- =====================================================================
+-- 🔗 8. LLAVES FORÁNEAS CIRCULARES Y ALTERACIONES
 -- =====================================================================
 ALTER TABLE USUARIO ADD CONSTRAINT fk_usuario_evento FOREIGN KEY (fk_id_evento) REFERENCES EVENTO(id_evento);
 ALTER TABLE EVENTO ADD CONSTRAINT fk_evento_pago FOREIGN KEY (id_pago) REFERENCES PAGO(id_pago);
@@ -137,7 +185,11 @@ CREATE INDEX idx_pago_referencia_externa ON PAGO(referencia_externa);
 CREATE INDEX idx_pago_estado_fecha ON PAGO(estado, fecha_pago);
 CREATE INDEX idx_pago_suscripcion_fecha_estado ON PAGO_SUSCRIPCION(fecha_pago, estado);
 CREATE INDEX idx_suscripcion_gestor_estado ON SUSCRIPCION_GESTOR(fk_id_gestor, estado);
+CREATE INDEX idx_espacio_abierto_evento
+ON ESPACIO_ABIERTO(fk_id_evento);
 
+CREATE INDEX idx_participante_espacio_estado
+ON ESPACIO_ABIERTO_PARTICIPANTE(fk_id_espacio_abierto, estado);
 -- =====================================================================
 -- 🔒 8. TRIGGERS DE VALIDACIÓN
 -- =====================================================================
