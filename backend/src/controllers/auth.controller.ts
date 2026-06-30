@@ -162,32 +162,77 @@ export async function register(req: Request, res: Response) {
 }
 
 export async function login(req: Request, res: Response) {
-  const parsed = loginSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ message: "Datos invalidos", errors: parsed.error.flatten().fieldErrors });
+  try {
+    console.log("=== LOGIN ===");
+    console.log(req.body);
+
+    const parsed = loginSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: "Datos inválidos",
+        errors: parsed.error.flatten().fieldErrors,
+      });
+    }
+
+    const { email, password } = parsed.data;
+
+    const [rows] = await pool.query<UserRow[]>(
+      `SELECT ${userColumns} FROM USUARIO WHERE email = ? LIMIT 1`,
+      [email]
+    );
+
+    console.log("Usuario encontrado:", rows.length);
+
+    const user = rows[0];
+
+    if (!user || !user.password_hash) {
+      return res.status(401).json({
+        message: "Correo o contraseña incorrectos",
+      });
+    }
+
+    const validPassword = await comparePassword(
+      password,
+      user.password_hash
+    );
+
+    console.log("Password válida:", validPassword);
+
+    if (!validPassword) {
+      return res.status(401).json({
+        message: "Correo o contraseña incorrectos",
+      });
+    }
+
+    const tokenUser = {
+      id: user.user_id,
+      user_id: user.user_id,
+      email: user.email,
+      type: user.type,
+      role: roleFromType(user.type),
+    };
+
+    const token = signToken(tokenUser);
+
+    const publicData = publicUser(user);
+
+    return res.json({
+      message: "Inicio de sesión exitoso",
+      token,
+      user: publicData,
+      redirectTo: publicData.redirectTo,
+      expiresIn: env.jwtExpiresIn,
+    });
+
+  } catch (err) {
+    console.error("ERROR LOGIN:");
+    console.error(err);
+
+    return res.status(500).json({
+      message: "Error interno",
+    });
   }
-
-  const { email, password } = parsed.data;
-  const [rows] = await pool.query<UserRow[]>(`SELECT ${userColumns} FROM USUARIO WHERE email = ? LIMIT 1`, [email]);
-  const user = rows[0];
-  if (!user || !user.password_hash) return res.status(401).json({ message: "Correo o contraseña incorrectos" });
-
-  const validPassword = await comparePassword(password, user.password_hash);
-  if (!validPassword) {
-    return res.status(401).json({ message: "Correo o contraseña incorrectos" });
-  }
-
-  const tokenUser = { id: user.user_id, user_id: user.user_id, email: user.email, type: user.type, role: roleFromType(user.type) };
-  const token = signToken(tokenUser);
-  const publicData = publicUser(user);
-
-  return res.json({
-    message: "Inicio de sesion exitoso",
-    token,
-    user: publicData,
-    redirectTo: publicData.redirectTo,
-    expiresIn: env.jwtExpiresIn,
-  });
 }
 
 export async function me(req: Request, res: Response) {
